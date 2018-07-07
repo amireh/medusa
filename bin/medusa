@@ -28,21 +28,16 @@ main() {
     fi
   done
 
-
-  if [[ " ${commands[@]} " =~ " $1 " ]]; then
-    medusa."$@"
-  elif [[ $# -eq 0 ]]; then
-    medusa.help 1>&2
-    exit 1
-  else
-    tty_print_error "unknown command \"$1\""
-
-    printf "\n"
+  if [[ ! " ${commands[@]} " =~ " $1 " ]]; then
+    if [[ $# -gt 0 ]]; then
+      tty_print_error "unknown command \"$1\""
+    fi
 
     medusa.help 1>&2
-
     exit 1
   fi
+
+  medusa."$@"
 }
 
 # ------------------------------------------------------------------------------
@@ -333,7 +328,15 @@ resolve_dockerhost() {
   if uname | grep Darwin 1> /dev/null; then
     echo 'host.docker.internal'
   else
-    docker network inspect bridge -f '{{ (index .IPAM.Config 0).Gateway }}'
+    local host=$(docker network inspect bridge -f '{{ (index .IPAM.Config 0).Gateway }}')
+
+    if [[ -n ${host} ]]; then
+      echo "${host}"
+    elif command -v ip 1>/dev/null; then
+      {
+        ip route list dev docker0 | awk 'NR==1 {print $NF}'
+      } 2>/dev/null # don't care if it fails
+    fi
   fi
 }
 
