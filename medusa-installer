@@ -1,0 +1,121 @@
+#!/usr/bin/env bash
+
+type -p git >/dev/null || {
+  echo "Error: git is required to proceed. Please install git and try again." 1>&2
+  exit 1
+}
+
+MEDUSA_SRC="${MEDUSA_SRC:-"https://github.com/amireh/medusa"}"
+MEDUSA_DIR="${MEDUSA_DIR:-${HOME}/.medusa}"
+MEDUSA_BIN="$(command -v medusa "${MEDUSA_DIR}"/bin/medusa | head -1)"
+MEDUSA_INSTALLER_VERSION="1.0"
+
+main() {
+  installer.header "medusa-installer ${MEDUSA_INSTALLER_VERSION}"
+  installer.install_medusa &&
+  installer.configure_bash && {
+    echo
+    echo "All done! Run \"medusa\" to get started."
+  }
+}
+
+installer.install_medusa() {
+  if [[ -x ${MEDUSA_DIR}/bin/medusa ]]; then
+    MEDUSA_DIR="$(medusa info | grep MEDUSA_DIR | cut -d'=' -f2)"
+    MEDUSA_BIN="${MEDUSA_DIR}/bin/medusa"
+
+    echo "Medusa is already installed in:"
+    echo ""
+    echo "    ${MEDUSA_DIR}"
+
+    (
+      cd "${MEDUSA_BIN%/*}"
+
+      installer.header "UPDATE"
+
+      echo "Updating through git..."
+
+      if git remote -v 2>/dev/null | grep -q medusa; then
+        git pull --tags origin master
+      else
+        echo "Update error: does not seem to be a git repository!" 1>&2
+      fi
+    )
+  else
+    echo "Installing medusa from git to \"${MEDUSA_DIR}\"..."
+
+    (
+      mkdir -p "${MEDUSA_DIR}" &&
+      cd "${MEDUSA_DIR}" &&
+      git init &&
+      git remote rm origin &&
+      git remote add origin "${MEDUSA_SRC}" &&
+      git checkout -b master &&
+      git pull origin master
+    ) || exit $?
+
+    MEDUSA_BIN="${MEDUSA_DIR}"/bin/medusa
+  fi
+}
+
+installer.configure_bash() {
+  BASH_PROFILE="$(installer.locate_bash_profile)"
+  MEDUSA_INSTALLER_STAMP="Automatically added by medusa-installer"
+
+  installer.header "BASH"
+
+  if [[ ! -f ${BASH_PROFILE} ]]; then
+    echo "Unable to locate Bash profile, can not configure Bash automatically." 1>&2
+    echo "Run \"${MEDUSA_BIN} init\" for instructions on configuring medusa for your shell." 1>&2
+    return 1
+  elif installer.has_bash_config; then
+    echo "Bash is already configured to load medusa, nothing to do!"
+    return 0
+  fi
+
+  echo "Configuring Bash to load Medusa in \"${BASH_PROFILE}\"."
+  echo "$(installer.generate_bash_config)" >> "${BASH_PROFILE}" &&
+  echo "Changes written successfully to \"${BASH_PROFILE}\"." &&
+  echo "Reloading Bash profile to reflect the changes to PATH..." &&
+  source "${BASH_PROFILE}" &&
+  echo "Bash configured."
+}
+
+installer.locate_bash_profile() {
+  files=(
+    "${HOME}/.bashrc"
+    "${HOME}/.bash_profile"
+  )
+
+  for file in "${files[@]}"; do
+    if test -f "${file}"; then
+      echo "${file}"
+      break
+    fi
+  done
+
+  return 1
+}
+
+installer.has_bash_config() {
+  grep -q "${MEDUSA_INSTALLER_STAMP}" "${BASH_PROFILE}"
+}
+
+installer.generate_bash_config() {
+  cat <<-EOF
+
+# ---------------------------------------------------------------------------
+# ${MEDUSA_INSTALLER_STAMP} (on $(date -u))
+$("${MEDUSA_BIN}" init)
+# ---------------------------------------------------------------------------
+
+EOF
+}
+
+installer.header() {
+  echo ""
+  echo "$@"
+  echo "------------------------------------------------------------------------"
+}
+
+main "$@"

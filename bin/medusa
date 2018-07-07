@@ -1,0 +1,331 @@
+#!/usr/bin/env bash
+
+MEDUSA_ANSIBLE_IMAGE="amireh/ansible:2.5.3-4.0"
+MEDUSA_VERSION="1.0"
+
+#                          ,--.
+#          ,--.  .--,`) )  .--,
+#       .--,`) \( (` /,--./ (`
+#      ( ( ,--.  ) )\ /`) ).--,-.
+#       ;.__`) )/ /) ) ( (( (`_) )
+#      ( (  / /( (.' "-.) )) )__.'-,
+#     _,--.( ( /`         `,/ ,--,) )
+#    ( (``) \,` ==.    .==  \( (`,-;
+#     ;-,( (_) ~6~ \  / ~6~ (_) )_) )
+#    ( (_ \_ (      )(      )__/___.'
+#    '.__,-,\ \     ''     /\ ,-.
+#       ( (_/ /\    __    /\ \_) )
+#        '._.'  \  \__/  /  '._.'
+#            .--`\      /`--.
+#    jgs          '----'
+main() {
+  local defined_methods=( $(declare -F | cut -d' ' -f3) )
+  local commands=()
+
+  for method in "${defined_methods[@]}"; do
+    if [[ ${method} =~ "medusa." ]]; then
+      commands+=("${method/medusa./}")
+    fi
+  done
+
+
+  if [[ " ${commands[@]} " =~ " $1 " ]]; then
+    medusa."$@"
+  else
+    tty_print_error "unknown command \"$1\""
+
+    printf "\n"
+
+    medusa.help 1>&2
+
+    exit 1
+  fi
+}
+
+# ------------------------------------------------------------------------------
+# COMMANDS
+# ------------------------------------------------------------------------------
+
+medusa.ansible-galaxy() {
+  medusa_docker_run \
+    $MEDUSA_ANSIBLE_IMAGE \
+      mimic \
+        ansible-galaxy "$@"
+}
+
+medusa.ansible-playbook() {
+  medusa_docker_run \
+    -e ANSIBLE_INVENTORY="${ANSIBLE_INVENTORY:-inventories/production/hosts}" \
+    -e ANSIBLE_VAULT_PASS="${ANSIBLE_VAULT_PASS}" \
+    $MEDUSA_ANSIBLE_IMAGE \
+      mimic \
+        ansible-playbook "$@"
+}
+
+medusa.ansible-vault() {
+  medusa_docker_run \
+    -e ANSIBLE_VAULT_PASS="${ANSIBLE_VAULT_PASS}" \
+    $MEDUSA_ANSIBLE_IMAGE \
+      mimic \
+        ansible-vault "$@"
+}
+
+medusa.go() {
+  local dockerhost="$(resolve_dockerhost)"
+  local settings_flag
+
+  if [ -z "${dockerhost}" ]; then
+    echo "[WARN] Unable to automatically lookup your machine IP address..." 1>&2
+    echo "[WARN] Please specify \"dockerhost\" in your settings.yml file." 1>&2
+  fi
+
+  if [ -f 'settings.yml' ]; then
+    settings_flag="--extra-vars @settings.yml"
+  fi
+
+  echo "$(docker --version)"
+  echo "Docker host address: ${dockerhost}"
+  echo "Docker delegate user GID: $(id -g)"
+  echo "Docker delegate user UID: $(id -u)"
+  echo "------------------------------------------------------------------------"
+
+  medusa_docker_run \
+    -v "$(resolve_path ../lib)":'/mnt/medusa':'ro' \
+    -e ANSIBLE_CONFIG="${ANSIBLE_CONFIG:-"/mnt/src/dev/ansible.cfg"}" \
+    -e ANSIBLE_RETRY_FILES_ENABLED="false" \
+    -e ANSIBLE_STDOUT_CALLBACK="debug" \
+    -e ANSIBLE_STDERR_CALLBACK="debug" \
+    -e ANSIBLE_GATHERING="explicit" \
+    -e MEDUSA_DOCKERHOST="${dockerhost}" \
+    -e MEDUSA_HOST_DIR="${PWD}" \
+    $MEDUSA_ANSIBLE_IMAGE \
+      mimic \
+        ansible-playbook -e @"/mnt/medusa/group_vars/all.yml" $settings_flag "$@"
+}
+
+medusa.shell() {
+  medusa_docker_run $MEDUSA_ANSIBLE_IMAGE "$@"
+}
+
+medusa.help() {
+  local commands=(
+    "go"                "apply a playbook in a development environment"
+    "ansible-playbook"  "access to dockerized ansible-playbook"
+    "ansible-vault"     "access to dockerized ansible-vault"
+    "ansible-galaxy"    "access to dockerized ansible-galaxy"
+    "shell"             "shell into a generic ansible container"
+
+    "info"              "display medusa installation information"
+  )
+
+  local shortcuts=(
+    "encrypt-file"      "encrypt a sensitive file"
+    "decrypt-file"      "decrypt a previously encrypted file"
+
+    "encrypt-string"    "encrypt a sensitive string and print to STDOUT"
+  )
+
+  local envvars=(
+    "ANSIBLE_CONFIG"     "path to ansible.cfg (inferred from the playbook path when blank) ${TTY_YELLOW}[go]${TTY_RESET}"
+    " "                  " "
+    "ANSIBLE_INVENTORY"  "path to inventory file (in place of -i) ${TTY_YELLOW}[ansible-playbook]${TTY_RESET}"
+    " "                  " "
+    "ANSIBLE_VAULT_PASS" "vault password for decrypting secrets but please do NOT type this in clear-text, instead use a tool to look it up from your OS's keychain ${TTY_YELLOW}[ansible-playbook, ansible-vault]${TTY_RESET}"
+  )
+
+  local medusa_version="${MEDUSA_VERSION}"
+  local ansible_version="${MEDUSA_ANSIBLE_IMAGE}"
+  local docker_version="$(docker version -f '{{ .Server.Version }}')"
+
+  printf "medusa                               [medusa  : %s]\n" "${medusa_version}"
+  printf "                                     [ansible : %s]\n" "${ansible_version}"
+  printf "                                     [docker  : %s]\n" "${docker_version}"
+
+  cat <<-'EOF'
+                           ,--.
+            ,--.  .--,`) )  .--,
+         .--,`) \( (` /,--./ (`
+        ( ( ,--.  ) )\ /`) ).--,-.
+         ;.__`) )/ /) ) ( (( (`_) )
+        ( (  / /( (.' "-.) )) )__.'-,
+       _,--.( ( /`         `,/ ,--,) )
+      ( (``) \,` ==.    .==  \( (`,-;
+       ;-,( (_) ~6~ \  / ~6~ (_) )_) )
+      ( (_ \_ (      )(      )__/___.'
+      '.__,-,\ \     ''     /\ ,-.
+         ( (_/ /\    __    /\ \_) )
+          '._.'  \  \__/  /  '._.'
+              .--`\      /`--.
+      jgs           '----'
+EOF
+
+  printf "\n"
+  printf "\nCommands:\n\n"
+
+  tty_print_columnized_list "${commands[@]}"
+
+  printf "\n"
+  printf "\nShortcuts:\n\n"
+
+  tty_print_columnized_list "${shortcuts[@]}"
+
+  printf "\n"
+  printf "\nEnvironment variables:\n\n"
+
+  tty_print_columnized_list "${envvars[@]}"
+}
+
+medusa.encrypt-file() {
+  medusa.ansible-vault encrypt "$@"
+}
+
+medusa.decrypt-file() {
+  medusa.ansible-vault decrypt "$@"
+}
+
+medusa.encrypt-string() {
+  medusa.ansible-vault encrypt_string "$@"
+}
+
+medusa.info() {
+  echo "MEDUSA_DIR=$(resolve_path ../)"
+}
+
+medusa.init() {
+  cat <<-EOF
+export PATH="$(resolve_path ./):\${PATH}"
+EOF
+}
+
+# ------------------------------------------------------------------------------
+# INTERNAL
+# ------------------------------------------------------------------------------
+
+resolve_dockerhost() {
+  # see https://github.com/moby/moby/issues/22753#issuecomment-219340358
+  # see https://docs.docker.com/docker-for-mac/networking/#use-cases-and-workarounds
+  if uname | grep Darwin 1> /dev/null; then
+    echo 'host.docker.internal'
+  else
+    docker network inspect bridge -f '{{ (index .IPAM.Config 0).Gateway }}'
+  fi
+}
+
+medusa_docker_run() {
+  if [ -t 0 ]; then
+    local interactive_flag="-i"
+  fi
+
+  docker run \
+    $interactive_flag \
+    --rm \
+    -t \
+    -v '/var/run/docker.sock':'/var/run/docker.sock':'ro' \
+    -v "${HOME}/.ssh":'/home/donkey/.ssh':'ro' \
+    -v "${PWD}":'/mnt/src':'rw' \
+    -w '/mnt/src' \
+    -e MIMIC_GID="$(id -G)" \
+    -e MIMIC_UID="$(id -u)" \
+    "$@"
+}
+
+TTY_BOLD="\033[1m"
+TTY_GREEN="\033[0;32m"
+TTY_RED="\033[0;31m"
+TTY_RESET="\033[0m"
+TTY_UNDERLINE="\033[4m"
+TTY_YELLOW="\033[1;33m"
+
+# (String, Number): String
+tty_lpad() {
+  local str=$1
+  local size=$2
+  local delta=$(( $size - ${#str} ))
+
+  if test $delta -gt 0; then
+    local padding=$(yes ' ' | head -$delta | tr -d '\n')
+    echo "${padding}${str}"
+  else
+    echo "${str}"
+  fi
+}
+
+# (shortdesc: String, longdesc: String, keycol_sz: Number = 24): void
+tty_columnize() {
+  local key="${1}"
+  local value="${2}"
+  local keycol_sz="${3:-24}"
+  local valcol_sz=$(( ${4:-72} - $keycol_sz ))
+  local IFS=$'\n'
+  local lines=( $(printf "${value}" | fold -s -w $valcol_sz) )
+  local printf_key="%-${keycol_sz}s"
+
+  for i in "${!lines[@]}"; do
+    if [ $i -gt 0 ]; then
+      printf "${printf_key} %s\n" "" "${lines[i]}"
+    else
+      printf "${TTY_BOLD}${printf_key}${TTY_RESET} %s\n" "${key}" "${lines[i]}"
+    fi
+  done
+}
+
+# (Array<Tuple<shortdesc: String, longdesc: String>>): void
+tty_print_columnized_list() {
+  local i=""
+  local list=("$@")
+  local indent="  "
+
+  for i in `seq 0 2 ${#@}`; do
+    tty_columnize "${indent}${list[i]}" "${list[i+1]}"
+  done
+}
+
+# (): String
+tty_progname() {
+  echo $(basename $0)
+}
+
+# (String): String
+tty_print_error() {
+  printf "${TTY_RED}%s: %s${TTY_RESET}\n" $(tty_progname) "${1}" 1>&2
+}
+
+resolve_path() {
+  # yield on absolute paths
+  if [[ "${1}" =~ ^/ ]]; then
+    echo "${1}"
+    return 0
+  fi
+
+  local this_file="$(resolve_symlink "${BASH_SOURCE[0]}")"
+  local this_dir="$( cd "$( dirname "${this_file}" )" && pwd )"
+
+  if [[ -z ${this_dir} ]]; then
+    return 1
+  fi
+
+  local path="${this_dir}/${1}"
+
+  # remove all /./ sequences.
+  path="${path//\/\.\///}"
+
+  # remove dir/.. sequences.
+  while [[ "${path}" =~ ([^/][^/]*/\.\./) ]]; do
+    path="${path/${BASH_REMATCH[0]}/}"
+  done
+
+  # remove trailing slash for directories
+  path="${path%/}"
+
+  echo $path
+}
+
+resolve_symlink() {
+  if test -L "${1}"; then
+    readlink "${1}"
+  else
+    echo "${1}"
+  fi
+}
+
+main "$@"

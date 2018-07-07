@@ -1,0 +1,24 @@
+# can't use native "group" module because it doesn't support the
+# non_unique option ("user" module does though)
+- name: "create a replica of the docker host user's group ({{ dockerhost_group }})"
+  shell: |
+    groupmod {{ dockerhost_group }} ||
+    groupadd -o -g {{ dockerhost_gid }} {{ dockerhost_group }}
+  changed_when: false
+  become: yes:
+  become_user: root
+
+- name: "create a replica of the docker host user ({{ dockerhost_user }})"
+  user:
+    uid: "{{ dockerhost_uid }}"
+    group: "{{ dockerhost_gid }}"
+    groups:
+      - root
+    state: present
+    name: "{{ dockerhost_user }}"
+    createhome: yes
+    shell: /bin/false
+    system: yes
+    non_unique: yes
+  become: yes:
+  become_user: root
