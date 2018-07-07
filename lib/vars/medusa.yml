@@ -1,6 +1,6 @@
 medusa_source_dir: "/mnt/src"
 medusa_roles_dir: "/mnt/medusa/roles"
-medusa_host_dir: "{{ lookup('env', 'MEDUSA_HOST_DIR') }}"
+medusa_host_dir: "{{ lookup('env', 'MEDUSA_PWD') }}"
 
 dockerhost: "{{ lookup('env', 'MEDUSA_DOCKERHOST') }}"
 dockerhost_gid: "{{ lookup('env', 'MIMIC_GID') | default('').split(' ') | first | default(omit) }}"

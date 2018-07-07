@@ -31,6 +31,9 @@ main() {
 
   if [[ " ${commands[@]} " =~ " $1 " ]]; then
     medusa."$@"
+  elif [[ $# -eq 0 ]]; then
+    medusa.help 1>&2
+    exit 1
   else
     tty_print_error "unknown command \"$1\""
 
@@ -43,44 +46,62 @@ main() {
 }
 
 # ------------------------------------------------------------------------------
+# ARGUMENTS
+# ------------------------------------------------------------------------------
+
+ANSIBLE_CONFIG="${ANSIBLE_CONFIG}"
+ANSIBLE_GATHERING="${ANSIBLE_GATHERING:-explicit}"
+ANSIBLE_RETRY_FILES_ENABLED="${ANSIBLE_RETRY_FILES_ENABLED:-false}"
+ANSIBLE_STDERR_CALLBACK="${ANSIBLE_STDERR_CALLBACK:-debug}"
+ANSIBLE_STDOUT_CALLBACK="${ANSIBLE_STDOUT_CALLBACK:-debug}"
+ANSIBLE_VAULT_PASS="${ANSIBLE_VAULT_PASS}"
+MEDUSA_ENV_FILE="${MEDUSA_ENV_FILE}"
+MEDUSA_SETTINGS_FILE="${MEDUSA_SETTINGS_FILE:-settings.yml}"
+MEDUSA_SSH_DIR="${MEDUSA_SSH_DIR:-${HOME}/.ssh}"
+
+# ------------------------------------------------------------------------------
 # COMMANDS
 # ------------------------------------------------------------------------------
 
+medusa.ansible() {
+  local flags=(
+    --extra-vars "@/mnt/medusa/vars/medusa.yml"
+  )
+
+  if [[ -f ${MEDUSA_SETTINGS_FILE} ]]; then
+    flags=("${flags[@]}" --extra-vars "@${MEDUSA_SETTINGS_FILE}")
+  fi
+
+  medusa_docker_run \
+    -v "$(resolve_path ../lib)":'/mnt/medusa':'ro' \
+    -e ANSIBLE_CONFIG \
+    -e ANSIBLE_VAULT_PASS \
+    $MEDUSA_ANSIBLE_IMAGE \
+      mimic \
+        ansible "${flags[@]}" "$@"
+}
+
 medusa.ansible-galaxy() {
   medusa_docker_run \
+    -e ANSIBLE_CONFIG \
     $MEDUSA_ANSIBLE_IMAGE \
       mimic \
         ansible-galaxy "$@"
 }
 
 medusa.ansible-playbook() {
-  medusa_docker_run \
-    -e ANSIBLE_INVENTORY="${ANSIBLE_INVENTORY:-inventories/production/hosts}" \
-    -e ANSIBLE_VAULT_PASS="${ANSIBLE_VAULT_PASS}" \
-    $MEDUSA_ANSIBLE_IMAGE \
-      mimic \
-        ansible-playbook "$@"
-}
-
-medusa.ansible-vault() {
-  medusa_docker_run \
-    -e ANSIBLE_VAULT_PASS="${ANSIBLE_VAULT_PASS}" \
-    $MEDUSA_ANSIBLE_IMAGE \
-      mimic \
-        ansible-vault "$@"
-}
-
-medusa.go() {
   local dockerhost="$(resolve_dockerhost)"
-  local settings_flag
+  local flags=(
+    --extra-vars "@/mnt/medusa/vars/medusa.yml"
+  )
 
   if [ -z "${dockerhost}" ]; then
     echo "[WARN] Unable to automatically lookup your machine IP address..." 1>&2
     echo "[WARN] Please specify \"dockerhost\" in your settings.yml file." 1>&2
   fi
 
-  if [ -f 'settings.yml' ]; then
-    settings_flag="--extra-vars @settings.yml"
+  if [[ -f ${MEDUSA_SETTINGS_FILE} ]]; then
+    flags=("${flags[@]}" --extra-vars "@${MEDUSA_SETTINGS_FILE}")
   fi
 
   echo "$(docker --version)"
@@ -91,46 +112,76 @@ medusa.go() {
 
   medusa_docker_run \
     -v "$(resolve_path ../lib)":'/mnt/medusa':'ro' \
-    -e ANSIBLE_CONFIG="${ANSIBLE_CONFIG:-"/mnt/src/dev/ansible.cfg"}" \
-    -e ANSIBLE_RETRY_FILES_ENABLED="false" \
-    -e ANSIBLE_STDOUT_CALLBACK="debug" \
-    -e ANSIBLE_STDERR_CALLBACK="debug" \
-    -e ANSIBLE_GATHERING="explicit" \
+    -e ANSIBLE_CONFIG \
+    -e ANSIBLE_GATHERING \
+    -e ANSIBLE_RETRY_FILES_ENABLED \
+    -e ANSIBLE_STDERR_CALLBACK \
+    -e ANSIBLE_STDOUT_CALLBACK \
+    -e ANSIBLE_VAULT_PASS \
     -e MEDUSA_DOCKERHOST="${dockerhost}" \
-    -e MEDUSA_HOST_DIR="${PWD}" \
     $MEDUSA_ANSIBLE_IMAGE \
       mimic \
-        ansible-playbook -e @"/mnt/medusa/group_vars/all.yml" $settings_flag "$@"
+        ansible-playbook "${flags[@]}" "$@"
 }
 
-medusa.shell() {
+medusa.ansible-vault() {
+  medusa_docker_run \
+    -e ANSIBLE_VAULT_PASS \
+    $MEDUSA_ANSIBLE_IMAGE \
+      mimic \
+        ansible-vault "$@"
+}
+
+medusa.exec() {
   medusa_docker_run $MEDUSA_ANSIBLE_IMAGE "$@"
 }
 
 medusa.help() {
   local commands=(
-    "go"                "apply a playbook in a development environment"
+    "ansible"           "access to dockerized ansible"
+    "ansible-galaxy"    "access to dockerized ansible-galaxy"
     "ansible-playbook"  "access to dockerized ansible-playbook"
     "ansible-vault"     "access to dockerized ansible-vault"
-    "ansible-galaxy"    "access to dockerized ansible-galaxy"
-    "shell"             "shell into a generic ansible container"
-
+    "exec"              "execute an arbitrary command in the container"
+    "help"              "display this help listing"
     "info"              "display medusa installation information"
   )
 
-  local shortcuts=(
-    "encrypt-file"      "encrypt a sensitive file"
-    "decrypt-file"      "decrypt a previously encrypted file"
+  local env_vars=(
+    "ANSIBLE_CONFIG"
+    "path to ansible.cfg (default: let ansible locate) ${TTY_YELLOW}[ansible, ansible-galaxy, ansible-playbook]${TTY_RESET}"
 
-    "encrypt-string"    "encrypt a sensitive string and print to STDOUT"
-  )
+    " " " "
+    "ANSIBLE_GATHERING"
+    "default override to 'explicit' ${TTY_YELLOW}[ansible-playbook]${TTY_RESET}"
 
-  local envvars=(
-    "ANSIBLE_CONFIG"     "path to ansible.cfg (inferred from the playbook path when blank) ${TTY_YELLOW}[go]${TTY_RESET}"
-    " "                  " "
-    "ANSIBLE_INVENTORY"  "path to inventory file (in place of -i) ${TTY_YELLOW}[ansible-playbook]${TTY_RESET}"
-    " "                  " "
-    "ANSIBLE_VAULT_PASS" "vault password for decrypting secrets but please do NOT type this in clear-text, instead use a tool to look it up from your OS's keychain ${TTY_YELLOW}[ansible-playbook, ansible-vault]${TTY_RESET}"
+    " " " "
+    "ANSIBLE_RETRY_FILES_ENABLED"
+    "default override to 'false' ${TTY_YELLOW}[ansible-playbook]${TTY_RESET}"
+
+    " " " "
+    "ANSIBLE_STDERR_CALLBACK"
+    "default override to 'debug' ${TTY_YELLOW}[ansible-playbook]${TTY_RESET}"
+
+    " " " "
+    "ANSIBLE_STDOUT_CALLBACK"
+    "default override to 'debug' ${TTY_YELLOW}[ansible-playbook]${TTY_RESET}"
+
+    " " " "
+    "ANSIBLE_VAULT_PASS"
+    "vault password for decrypting secrets but please do NOT type this in clear-text, instead use a tool to look it up from your OS's keychain ${TTY_YELLOW}[ansible, ansible-playbook, ansible-vault]${TTY_RESET}"
+
+    " " " "
+    "MEDUSA_ENV_FILE"
+    "env-list file to pass to docker run in case you really want to override ansible environment variables ${TTY_YELLOW}[all]${TTY_RESET}"
+
+    " " " "
+    "MEDUSA_SETTINGS_FILE"
+    "user variable overrides (default: 'settings.yml' if it exists) ${TTY_YELLOW}[ansible-playbook]${TTY_RESET}"
+
+    " " " "
+    "MEDUSA_SSH_DIR"
+    "ssh directory to mount for use by the masquerading user (default: '\$HOME/.ssh' if it exists) ${TTY_YELLOW}[all]${TTY_RESET}"
   )
 
   local medusa_version="${MEDUSA_VERSION}"
@@ -156,78 +207,76 @@ medusa.help() {
          ( (_/ /\    __    /\ \_) )
           '._.'  \  \__/  /  '._.'
               .--`\      /`--.
-      jgs           '----'
+      jgs          '----'
 EOF
 
   printf "\n"
   printf "\nCommands:\n\n"
 
-  tty_print_columnized_list "${commands[@]}"
-
-  printf "\n"
-  printf "\nShortcuts:\n\n"
-
-  tty_print_columnized_list "${shortcuts[@]}"
+  tty_print_columnized_list 24 "${commands[@]}"
 
   printf "\n"
   printf "\nEnvironment variables:\n\n"
 
-  tty_print_columnized_list "${envvars[@]}"
-}
+  tty_print_columnized_list 30 "${env_vars[@]}"
 
-medusa.encrypt-file() {
-  medusa.ansible-vault encrypt "$@"
-}
-
-medusa.decrypt-file() {
-  medusa.ansible-vault decrypt "$@"
-}
-
-medusa.encrypt-string() {
-  medusa.ansible-vault encrypt_string "$@"
+  printf "\n"
+  printf "To fully configure Ansible, use an ansible.cfg file and point to it\n"
+  printf "with ANSIBLE_CONFIG if necessary.\n"
+  printf "\n"
+  printf "Refer to Ansible documentation for the complete reference or run\n"
+  printf "the following command:\n\n"
+  printf "    medusa exec ansible-config list"
+  printf "\n"
+  printf "\n"
 }
 
 medusa.info() {
   echo "MEDUSA_DIR=$(resolve_path ../)"
+  echo "MEDUSA_BIN=$(resolve_path ../bin/medusa)"
+  echo "MEDUSA_VERSION=${MEDUSA_VERSION}"
+  echo "MEDUSA_ANSIBLE_IMAGE=${MEDUSA_ANSIBLE_IMAGE}"
+  echo "MEDUSA_DOCKER_VERSION=$(docker version -f '{{ .Server.Version }}')"
 }
 
 medusa.init() {
-  cat <<-EOF
-export PATH="$(resolve_path ./):\${PATH}"
-EOF
+  echo "export PATH=\"$(resolve_path ../bin):\${PATH}\""
 }
 
 # ------------------------------------------------------------------------------
-# INTERNAL
+# PRIVATE
 # ------------------------------------------------------------------------------
-
-resolve_dockerhost() {
-  # see https://github.com/moby/moby/issues/22753#issuecomment-219340358
-  # see https://docs.docker.com/docker-for-mac/networking/#use-cases-and-workarounds
-  if uname | grep Darwin 1> /dev/null; then
-    echo 'host.docker.internal'
-  else
-    docker network inspect bridge -f '{{ (index .IPAM.Config 0).Gateway }}'
-  fi
-}
 
 medusa_docker_run() {
-  if [ -t 0 ]; then
-    local interactive_flag="-i"
+  local args=(
+    --rm
+    -t
+    -v '/var/run/docker.sock':'/var/run/docker.sock':'ro'
+    -v "${PWD}":'/mnt/src':'rw'
+    -w '/mnt/src'
+    -e MIMIC_GID="$(id -G)"
+    -e MIMIC_UID="$(id -u)"
+    -e MEDUSA_PWD="${PWD}"
+  )
+
+  if [[ -t 0 ]]; then
+    args=("${args[@]}" -i)
   fi
 
-  docker run \
-    $interactive_flag \
-    --rm \
-    -t \
-    -v '/var/run/docker.sock':'/var/run/docker.sock':'ro' \
-    -v "${HOME}/.ssh":'/home/donkey/.ssh':'ro' \
-    -v "${PWD}":'/mnt/src':'rw' \
-    -w '/mnt/src' \
-    -e MIMIC_GID="$(id -G)" \
-    -e MIMIC_UID="$(id -u)" \
-    "$@"
+  if [[ -d ${MEDUSA_SSH_DIR} ]]; then
+    args=("${args[@]}" -v "${MEDUSA_SSH_DIR}":'/home/donkey/.ssh':'ro')
+  fi
+
+  if [[ -f ${MEDUSA_ENV_FILE} ]]; then
+    args=("${args[@]}" --env-file="${MEDUSA_ENV_FILE}")
+  fi
+
+  docker run "${args[@]}" "$@"
 }
+
+# ------------------------------------------------------------------------------
+# UTILS
+# ------------------------------------------------------------------------------
 
 TTY_BOLD="\033[1m"
 TTY_GREEN="\033[0;32m"
@@ -235,20 +284,6 @@ TTY_RED="\033[0;31m"
 TTY_RESET="\033[0m"
 TTY_UNDERLINE="\033[4m"
 TTY_YELLOW="\033[1;33m"
-
-# (String, Number): String
-tty_lpad() {
-  local str=$1
-  local size=$2
-  local delta=$(( $size - ${#str} ))
-
-  if test $delta -gt 0; then
-    local padding=$(yes ' ' | head -$delta | tr -d '\n')
-    echo "${padding}${str}"
-  else
-    echo "${str}"
-  fi
-}
 
 # (shortdesc: String, longdesc: String, keycol_sz: Number = 24): void
 tty_columnize() {
@@ -272,11 +307,13 @@ tty_columnize() {
 # (Array<Tuple<shortdesc: String, longdesc: String>>): void
 tty_print_columnized_list() {
   local i=""
+  local keycol_sz=$1
+  shift 1
   local list=("$@")
   local indent="  "
 
   for i in `seq 0 2 ${#@}`; do
-    tty_columnize "${indent}${list[i]}" "${list[i+1]}"
+    tty_columnize "${indent}${list[i]}" "${list[i+1]}" $keycol_sz
   done
 }
 
@@ -288,6 +325,16 @@ tty_progname() {
 # (String): String
 tty_print_error() {
   printf "${TTY_RED}%s: %s${TTY_RESET}\n" $(tty_progname) "${1}" 1>&2
+}
+
+resolve_dockerhost() {
+  # see https://github.com/moby/moby/issues/22753#issuecomment-219340358
+  # see https://docs.docker.com/docker-for-mac/networking/#use-cases-and-workarounds
+  if uname | grep Darwin 1> /dev/null; then
+    echo 'host.docker.internal'
+  else
+    docker network inspect bridge -f '{{ (index .IPAM.Config 0).Gateway }}'
+  fi
 }
 
 resolve_path() {
@@ -322,7 +369,7 @@ resolve_path() {
 
 resolve_symlink() {
   if test -L "${1}"; then
-    readlink "${1}"
+    $(type -p greadlink readlink | head -1) "${1}"
   else
     echo "${1}"
   fi
