@@ -1,6 +1,4 @@
-require 'yaml'
-
-RSpec.describe 'medusa exec', type: :bash, ansible: true do
+RSpec.describe 'medusa exec', type: :bash, docker: true, ansible: true do
   subject { medusa_script }
 
   it 'works' do
@@ -44,7 +42,7 @@ RSpec.describe 'medusa exec', type: :bash, ansible: true do
     expect(subject.stdout.strip).to eq(`id -G`.strip)
   end
 
-  describe 'MEDUSA_SSH_DIR', docker: true do
+  describe 'MEDUSA_SSH_DIR' do
     it 'is a no-op if ssh dir does not exist' do
       expect(run_script(subject, [ 'exec', 'true' ], env: {
         "MEDUSA_SSH_DIR" => "/foo/bar/baz/kljaxhcvlyuioadf"
