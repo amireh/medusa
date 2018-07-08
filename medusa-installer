@@ -1,11 +1,20 @@
 #!/usr/bin/env bash
 
+T_PRG="medusa-installer"
+
+if [[ -t 1 ]]; then
+  T_ERR="\033[0;31m"
+  T_OKA='[✓]'
+  T_PEN='[ ]'
+  T_RES="\033[0m"
+  T_WAR="\033[1;33m" # imagination hits a brickwall
+fi
+
 type -p git >/dev/null || {
-  echo "Error: git is required to proceed. Please install git and try again." 1>&2
+  echo "$T_PRG: git is required to proceed. Please install it and try again." 1>&2
   exit 1
 }
 
-TICK='✓'
 MEDUSA_INSTALLER_STAMP="Automatically added by medusa-installer"
 MEDUSA_SRC="${MEDUSA_SRC:-https://github.com/amireh/medusa}"
 MEDUSA_REF="${MEDUSA_REF:-master}"
@@ -15,14 +24,13 @@ main() {
   MEDUSA_DIR="${MEDUSA_DIR:-"$(installer.locate_installation_dir)"}"
   MEDUSA_BIN="${MEDUSA_DIR}/bin/medusa"
 
-  installer.header "medusa-installer"
-
-  echo "Installation arguments:"
+  echo "Medusa installation arguments:"
   echo ""
   echo "MEDUSA_DIR    = ${MEDUSA_DIR}"
   echo "MEDUSA_SRC    = ${MEDUSA_SRC}"
   echo "MEDUSA_REF    = ${MEDUSA_REF}"
   echo "BASH_PROFILE  = ${BASH_PROFILE}"
+  echo ""
 
   installer.install_medusa &&
   installer.configure_bash || return $?
@@ -32,8 +40,6 @@ main() {
 }
 
 installer.install_medusa() {
-  installer.header "INSTALL"
-
   (
     DIR="${MEDUSA_DIR}" \
     GIT_ORIGIN="${MEDUSA_SRC}" \
@@ -43,56 +49,65 @@ installer.install_medusa() {
 }
 
 installer.configure_bash() {
-  installer.header "CONFIGURE"
+  echo "$T_PEN Configuring Bash..."
 
   if [[ ! -f ${BASH_PROFILE} ]]; then
-    echo "Unable to locate Bash profile, can not configure Bash automatically." 1>&2
-    echo "Run the following command for instructions on configuring medusa for " 1>&2
-    echo "your shell:" 1>&2
-    echo "    ${MEDUSA_BIN} init" 1>&2
+    echo -e "$T_WAR"
+    echo "Unable to locate Bash profile in order to configure Bash for you."
+    echo "Run the following command for instructions on configuring medusa for "
+    echo "your shell:"
+    echo ""
+    echo "    ${MEDUSA_BIN} init"
+    echo -e "$T_RES"
 
     return 1
   fi
 
-  if grep -q "${MEDUSA_INSTALLER_STAMP}" "${BASH_PROFILE}"; then
-    echo "Bash is already configured to load medusa, nothing to do."
+  # be conservative about adding anything to the profile; don't if:
+  #
+  # - installer was run before (where the stamp would exist)
+  # - 'eval "$(path/to/medusa init -)"' directive exists (the output of `medusa
+  #   init` was added by hand)
+  # - medusa is already in path (maybe a symlink is used)
+  if ! grep  -q "${MEDUSA_INSTALLER_STAMP}" "${BASH_PROFILE}" &&
+     ! egrep -q '^eval .+medusa.+init -'    "${BASH_PROFILE}" &&
+     ! type  -p medusa
+  then
+    {
+      echo "# ----------------------------------------------------------------------"
+      echo "# ${MEDUSA_INSTALLER_STAMP} (on $(date -u))"
+      echo "eval \"\$('${MEDUSA_BIN}' init -)\""
+      echo "# ----------------------------------------------------------------------"
+    } >> "${BASH_PROFILE}"
 
-    # medusa not in PATH?
-    if ! command -v 1>/dev/null medusa; then
-      echo ""
-      echo "NOTE: It seems that your current PATH does not contain 'medusa' even " 1>&2
-      echo "      though the directive exists in your profile. You may need to " 1>&2
-      echo "      restart your shell session for the changes to take effect." 1>&2
-    # different medusa in PATH?
-    elif [[ $(command -v medusa) != ${MEDUSA_BIN} ]]; then
-      echo ""
-      echo "NOTE: It seems that your current PATH is pointing at a different" 1>&2
-      echo "      version of 'medusa' than the one provided by this installation." 1>&2
-      echo "      " 1>&2
-      echo "      This one  = ${MEDUSA_BIN}" 1>&2
-      echo "      PATH one  = $(command -v medusa)" 1>&2
-      echo "      " 1>&2
-      echo "      You may want to amend your shell profile to load the desired" 1>&2
-      echo "      version." 1>&2
-    fi
-
-    return 0
+    echo ""
+    echo "NOTE: You must reload your Bash profile to reflect the changes to PATH."
+    echo "      Either restart your shell, or run the following command:"
+    echo ""
+    echo "          source ${BASH_PROFILE}"
+    echo ""
+  # medusa not in PATH?
+  elif ! type -p medusa; then
+    echo -e "${T_WAR}"
+    echo "NOTE: It seems that your current PATH does not contain 'medusa' even "
+    echo "      though the directive exists in your profile. You may need to "
+    echo "      restart your shell session for the changes to take effect."
+    echo -e "${T_RES}"
+  # different medusa in PATH?
+  elif [[ $(type -p medusa) != ${MEDUSA_BIN} ]]; then
+    echo -e "${T_WAR}"
+    echo "NOTE: It seems that your current PATH is pointing at a version of"
+    echo "      medusa other than the one provided by this installation."
+    echo "      "
+    echo "      This one  = ${MEDUSA_BIN}"
+    echo "      PATH one  = $(type -p medusa)"
+    echo "      "
+    echo "      You may want to amend your shell profile to load the desired"
+    echo "      version."
+    echo -e "$T_RES"
   fi
 
-  {
-    echo "# ----------------------------------------------------------------------"
-    echo "# ${MEDUSA_INSTALLER_STAMP} (on $(date -u))"
-    echo "eval \"\$('${MEDUSA_BIN}' init -)\""
-    echo "# ----------------------------------------------------------------------"
-  } >> "${BASH_PROFILE}"
-
-  echo "Bash configured. $TICK"
-  echo ""
-  echo "NOTE: You must reload your Bash profile to reflect the changes to PATH."
-  echo "      Either restart your shell, or run the following command:"
-  echo ""
-  echo "          source ${BASH_PROFILE}"
-  echo ""
+  echo "$T_OKA Bash configured."
 }
 
 installer.locate_bash_profile() {
@@ -119,12 +134,6 @@ installer.locate_installation_dir() {
   fi
 }
 
-installer.header() {
-  echo ""
-  echo "$@"
-  echo "------------------------------------------------------------------------"
-}
-
 git_clone() {
   local installing=1
 
@@ -136,11 +145,11 @@ git_clone() {
 
   {
     if [[ ! -d .git ]]; then
-      echo "Installing from git..."
+      echo "$T_PEN Installing from git..."
       git init --quiet .
     else
       installing=0
-      echo "Updating from git..."
+      echo "$T_PEN Updating from git..."
     fi
   } || return $?
 
@@ -165,9 +174,9 @@ git_clone() {
   } || return $?
 
   if [[ $installing -eq 1 ]]; then
-    echo "Installed. $TICK"
+    echo "$T_OKA Installed."
   else
-    echo "Up to date. $TICK"
+    echo "$T_OKA Updated."
   fi
 }
 

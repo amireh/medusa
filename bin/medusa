@@ -235,8 +235,7 @@ medusa.init() {
     echo "  source '${installation_dir}/completions/medusa.bash'"
     echo "fi"
   else
-    echo '# Load medusa automatically by appending the following to' 1>&2
-    echo "# ~/.bash_profile:" 1>&2
+    echo '# Load medusa by appending the following to ~/.bash_profile or ~/.bashrc:' 1>&2
     echo "eval \"\$('${installation_dir}/bin/medusa' init -)\"" 1>&2
 
     exit 1
@@ -306,12 +305,13 @@ medusa_docker_run() {
 # UTILS
 # ------------------------------------------------------------------------------
 
-TTY_BOLD="\033[1m"
-TTY_GREEN="\033[0;32m"
-TTY_RED="\033[0;31m"
-TTY_RESET="\033[0m"
-TTY_UNDERLINE="\033[4m"
-TTY_YELLOW="\033[1;33m"
+if [[ -t 1 ]]; then
+  TTY_BOLD="\033[1m"
+  TTY_GREEN="\033[0;32m"
+  TTY_RED="\033[0;31m"
+  TTY_RESET="\033[0m"
+  TTY_YELLOW="\033[1;33m"
+fi
 
 # (shortdesc: String, longdesc: String, keycol_sz: Number = 24): void
 tty_columnize() {

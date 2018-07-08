@@ -39,7 +39,11 @@ RSpec.describe 'medusa exec', type: :bash, docker: true, ansible: true do
   it 'mimics my GIDs' do
     run_script(subject, ['exec', 'mimic', 'id', '-G'])
 
-    expect(subject.stdout.strip).to eq(`id -G`.strip)
+    expect(
+      subject.stdout.strip.split(' ').map(&:to_i)
+    ).to include(
+      *(`id -G`.strip.split(' ').map(&:to_i))
+    )
   end
 
   describe 'MEDUSA_SSH_DIR' do

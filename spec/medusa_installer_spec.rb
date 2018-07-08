@@ -125,19 +125,14 @@ RSpec.describe 'medusa-installer', type: :bash do
         "BASH_PROFILE" => "kjhasdfk zxkl vhzxlcj "
       }))).to be false
 
-      expect(subject.stderr).to include('Unable to locate Bash profile')
-    end
-
-    it "notifies if bash profile already has the stamp" do
-      File.write env['BASH_PROFILE'], <<-EOF
-        #{installer_stamp}
-      EOF
-
-      expect(run_script(subject, env: env)).to be true
-      expect(subject.stdout).to include 'Bash is already configured'
+      expect(subject.stdout).to include('Unable to locate Bash profile')
     end
 
     it "evals the output of 'medusa init -' in bashrc" do
+      expect(subject).to receive(:type)
+        .with_args('-p git').and_return(0)
+        .with_args('-p medusa').and_return(1)
+
       expect(run_script(subject, env: env)).to be true
       expect(File.read(env['BASH_PROFILE'])).to include(eval_snippet)
       expect(subject.stdout).to include 'Bash configured.'

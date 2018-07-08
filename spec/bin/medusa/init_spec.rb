@@ -6,7 +6,7 @@ RSpec.describe 'medusa init', type: :bash do
   it 'prints instructions' do
     run_script(subject, ['init'])
 
-    expect(subject.stderr).to include('# Load medusa automatically by')
+    expect(subject.stderr).to include('# Load medusa by appending')
     expect(subject.stdout).to be_empty
   end
 
