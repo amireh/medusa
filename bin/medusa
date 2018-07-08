@@ -46,45 +46,32 @@ main() {
 # ARGUMENTS
 # ------------------------------------------------------------------------------
 
-export ANSIBLE_CONFIG="${ANSIBLE_CONFIG}"
-export ANSIBLE_GATHERING="${ANSIBLE_GATHERING:-explicit}"
 export ANSIBLE_RETRY_FILES_ENABLED="${ANSIBLE_RETRY_FILES_ENABLED:-false}"
 export ANSIBLE_STDERR_CALLBACK="${ANSIBLE_STDERR_CALLBACK:-debug}"
 export ANSIBLE_STDOUT_CALLBACK="${ANSIBLE_STDOUT_CALLBACK:-debug}"
 export ANSIBLE_VAULT_PASS="${ANSIBLE_VAULT_PASS}"
-export MEDUSA_ENV_FILE="${MEDUSA_ENV_FILE}"
+export MEDUSA_CONTAINER="${MEDUSA_CONTAINER}"
+export MEDUSA_DOCKERHOST="${MEDUSA_DOCKERHOST}"
 export MEDUSA_SETTINGS_FILE="${MEDUSA_SETTINGS_FILE:-settings.yml}"
+export MEDUSA_SHARE_DIR="${MEDUSA_SHARE_DIR:-/mnt/medusa}"
 export MEDUSA_SSH_DIR="${MEDUSA_SSH_DIR:-${HOME}/.ssh}"
+export MEDUSA_VERBOSE="${MEDUSA_VERBOSE:-0}"
 
 # ------------------------------------------------------------------------------
 # COMMANDS
 # ------------------------------------------------------------------------------
 
 medusa.ansible() {
-  medusa_docker_run \
-    -e ANSIBLE_CONFIG \
-    -e ANSIBLE_VAULT_PASS \
-    -- \
-      mimic \
-        ansible "$@"
+  medusa_docker_run -- mimic ansible "$@"
 }
 
 medusa.ansible-galaxy() {
-  medusa_docker_run \
-    -e ANSIBLE_CONFIG \
-    -- \
-      mimic \
-        ansible-galaxy "$@"
+  medusa_docker_run -- mimic ansible-galaxy "$@"
 }
 
 medusa.ansible-playbook() {
   local dockerhost="$(resolve_dockerhost)"
-  local flags=(--extra-vars "@/mnt/medusa/vars/medusa.yml")
-
-  if [ -z "${dockerhost}" ]; then
-    echo "[WARN] Unable to automatically lookup your machine IP address..." 1>&2
-    echo "[WARN] Please specify \"dockerhost\" in your settings.yml file." 1>&2
-  fi
+  local flags=(--extra-vars "@${MEDUSA_SHARE_DIR}/vars/medusa.yml")
 
   if [[ -f ${MEDUSA_SETTINGS_FILE} ]]; then
     flags=("${flags[@]}" --extra-vars "@${MEDUSA_SETTINGS_FILE}")
@@ -92,19 +79,23 @@ medusa.ansible-playbook() {
 
   echo "$(docker --version)" 1>&2
   echo "Docker host address: ${dockerhost}" 1>&2
-  echo "Docker delegate user GID: $(id -g)" 1>&2
-  echo "Docker delegate user UID: $(id -u)" 1>&2
+  echo "Docker host user UID/GID: $(id -u):$(id -g)" 1>&2
   echo "Ansible flags: ${flags[@]}" 1>&2
   echo "------------------------------------------------------------------------" 1>&2
 
+  if [[ -z ${dockerhost} ]] && ! $(has_dockerhost_in_settings); then
+    {
+      echo "[WARN] Unable to resolve the docker host ip address automatically..."
+      echo "       Please specify \"dockerhost\" in \"${MEDUSA_SETTINGS_FILE}\" "
+      echo "       if you're planning to use the variable. For example:"
+      echo ""
+      echo "           dockerhost: 192.168.1.100"
+      echo ""
+    } 1>&2
+  fi
+
   medusa_docker_run \
-    -v "$(resolve_path ../lib)":'/mnt/medusa':'ro' \
-    -e ANSIBLE_CONFIG \
-    -e ANSIBLE_GATHERING \
-    -e ANSIBLE_RETRY_FILES_ENABLED \
-    -e ANSIBLE_STDERR_CALLBACK \
-    -e ANSIBLE_STDOUT_CALLBACK \
-    -e ANSIBLE_VAULT_PASS \
+    -v "$(resolve_path ../lib)":"${MEDUSA_SHARE_DIR}":'ro' \
     -e MEDUSA_DOCKERHOST="${dockerhost}" \
     -- \
       mimic \
@@ -112,15 +103,15 @@ medusa.ansible-playbook() {
 }
 
 medusa.ansible-vault() {
-  medusa_docker_run \
-    -e ANSIBLE_VAULT_PASS \
-    -- \
-      mimic \
-        ansible-vault "$@"
+  medusa_docker_run -- mimic ansible-vault "$@"
 }
 
 medusa.exec() {
   medusa_docker_run -- "$@"
+}
+
+medusa.go() {
+  medusa.ansible-playbook "$@"
 }
 
 medusa.help() {
@@ -135,12 +126,8 @@ medusa.help() {
   )
 
   local env_vars=(
-    "ANSIBLE_CONFIG"
-    "path to ansible.cfg (default: let ansible locate) ${TTY_YELLOW}[ansible, ansible-galaxy, ansible-playbook]${TTY_RESET}"
-
-    " " " "
-    "ANSIBLE_GATHERING"
-    "default override to 'explicit' ${TTY_YELLOW}[ansible-playbook]${TTY_RESET}"
+    "ANSIBLE_*"
+    "any of the supported Ansible environment variables ${TTY_YELLOW}[all]${TTY_RESET}"
 
     " " " "
     "ANSIBLE_RETRY_FILES_ENABLED"
@@ -156,19 +143,31 @@ medusa.help() {
 
     " " " "
     "ANSIBLE_VAULT_PASS"
-    "vault password for decrypting secrets but please do NOT type this in clear-text, instead use a tool to look it up from your OS's keychain ${TTY_YELLOW}[ansible, ansible-playbook, ansible-vault]${TTY_RESET}"
+    "ansible vault password to stash into a file readable only to the ansible user\n \n>> DO NOT TYPE THIS IN CLEAR-TEXT <<\n \n${TTY_YELLOW}[ansible, ansible-playbook, ansible-vault]${TTY_RESET}"
 
     " " " "
-    "MEDUSA_ENV_FILE"
-    "env-list file to pass to docker run in case you really want to override ansible environment variables ${TTY_YELLOW}[all]${TTY_RESET}"
+    "MEDUSA_CONTAINER"
+    "a name to assign to the docker container ${TTY_YELLOW}[all]${TTY_RESET}"
+
+    " " " "
+    "MEDUSA_DOCKERHOST"
+    "ip address to use inside containers to reach the docker host (default: infer from host) ${TTY_YELLOW}[ansible-playbook]${TTY_RESET}"
 
     " " " "
     "MEDUSA_SETTINGS_FILE"
     "user variable overrides (default: 'settings.yml' if it exists) ${TTY_YELLOW}[ansible-playbook]${TTY_RESET}"
 
     " " " "
+    "MEDUSA_SHARE_DIR"
+    "path to where the medusa library should be mounted inside the container (default: ${MEDUSA_SHARE_DIR}) ${TTY_YELLOW}[ansible-playbook]${TTY_RESET}"
+
+    " " " "
     "MEDUSA_SSH_DIR"
     "ssh directory to mount for use by the masquerading user (default: '\$HOME/.ssh' if it exists) ${TTY_YELLOW}[all]${TTY_RESET}"
+
+    " " " "
+    "MEDUSA_VERBOSE"
+    "print docker commands to console before running (default: 0) ${TTY_YELLOW}[all]${TTY_RESET}"
   )
 
   local medusa_version="${MEDUSA_VERSION}"
@@ -180,50 +179,50 @@ medusa.help() {
   printf "                                     [docker  : %s]\n" "${docker_version}"
 
   cat <<-'EOF'
-                           ,--.
-            ,--.  .--,`) )  .--,
-         .--,`) \( (` /,--./ (`
-        ( ( ,--.  ) )\ /`) ).--,-.
-         ;.__`) )/ /) ) ( (( (`_) )
-        ( (  / /( (.' "-.) )) )__.'-,
-       _,--.( ( /`         `,/ ,--,) )
-      ( (``) \,` ==.    .==  \( (`,-;
-       ;-,( (_) ~6~ \  / ~6~ (_) )_) )
-      ( (_ \_ (      )(      )__/___.'
-      '.__,-,\ \     ''     /\ ,-.
-         ( (_/ /\    __    /\ \_) )
-          '._.'  \  \__/  /  '._.'
-              .--`\      /`--.
-      jgs          '----'
+                             ,--.
+              ,--.  .--,`) )  .--,
+           .--,`) \( (` /,--./ (`
+          ( ( ,--.  ) )\ /`) ).--,-.
+           ;.__`) )/ /) ) ( (( (`_) )
+          ( (  / /( (.' "-.) )) )__.'-,
+         _,--.( ( /`         `,/ ,--,) )
+        ( (``) \,` ==.    .==  \( (`,-;
+         ;-,( (_) ~6~ \  / ~6~ (_) )_) )
+        ( (_ \_ (      )(      )__/___.'
+        '.__,-,\ \     ''     /\ ,-.
+           ( (_/ /\    __    /\ \_) )
+            '._.'  \  \__/  /  '._.'
+                .--`\      /`--.
+        jgs          '----'
 EOF
 
-  printf "\n"
   printf "\nCommands:\n\n"
 
   tty_print_columnized_list 24 "${commands[@]}"
 
-  printf "\n"
   printf "\nEnvironment variables:\n\n"
 
   tty_print_columnized_list 30 "${env_vars[@]}"
 
   printf "\n"
-  printf "To fully configure Ansible, use an ansible.cfg file and point to it\n"
-  printf "with ANSIBLE_CONFIG if necessary.\n"
+  printf "To fully configure Ansible, it is recommended to use an ansible.cfg \n"
+  printf "file and point to it with ANSIBLE_CONFIG if necessary.\n"
   printf "\n"
   printf "Refer to Ansible documentation for the complete reference or run\n"
   printf "the following command:\n\n"
   printf "    medusa exec ansible-config list"
   printf "\n"
   printf "\n"
+  printf "For full documentation, see: https://github.com/amireh/medusa"
+  printf "\n"
 }
 
 medusa.info() {
-  echo "MEDUSA_DIR=$(resolve_path ../)"
-  echo "MEDUSA_BIN=$(resolve_path ../bin/medusa)"
-  echo "MEDUSA_VERSION=${MEDUSA_VERSION}"
   echo "MEDUSA_ANSIBLE_IMAGE=${MEDUSA_ANSIBLE_IMAGE}"
+  echo "MEDUSA_BIN=$(resolve_path ../bin/medusa)"
+  echo "MEDUSA_DIR=$(resolve_path ../)"
   echo "MEDUSA_DOCKER_VERSION=$(docker version -f '{{ .Server.Version }}')"
+  echo "MEDUSA_VERSION=${MEDUSA_VERSION}"
 }
 
 medusa.init() {
@@ -254,6 +253,7 @@ medusa_commands() {
 
 medusa_docker_run() {
   local command_args=()
+  local ansible_env_vars=()
   local args=(
     --rm
     -t
@@ -273,9 +273,15 @@ medusa_docker_run() {
     args=("${args[@]}" -v "${MEDUSA_SSH_DIR}":'/home/donkey/.ssh':'ro')
   fi
 
-  if [[ -f ${MEDUSA_ENV_FILE} ]]; then
-    args=("${args[@]}" --env-file="${MEDUSA_ENV_FILE}")
+  if [[ -n ${MEDUSA_CONTAINER} ]]; then
+    args=("${args[@]}" --name "${MEDUSA_CONTAINER}")
   fi
+
+  IFS=$'\n' read -rd '' -a ansible_env_vars <<< "$(env | grep ANSIBLE_ | sort)"
+
+  for env_var in "${ansible_env_vars[@]}"; do
+    args=("${args[@]}" -e "${env_var}")
+  done
 
   local delimiter_found=1
 
@@ -288,6 +294,10 @@ medusa_docker_run() {
       args=("${args[@]}" "${arg}")
     fi
   done
+
+  if [[ "$MEDUSA_VERBOSE" == "1" ]]; then
+    echo "docker run ${args[@]} $MEDUSA_ANSIBLE_IMAGE ${command_args[@]}" 1>&2
+  fi
 
   docker run "${args[@]}" $MEDUSA_ANSIBLE_IMAGE "${command_args[@]}"
 }
@@ -346,9 +356,11 @@ tty_print_error() {
 }
 
 resolve_dockerhost() {
+  if [[ -n ${MEDUSA_DOCKERHOST} ]]; then
+    echo "${MEDUSA_DOCKERHOST}"
   # see https://github.com/moby/moby/issues/22753#issuecomment-219340358
   # see https://docs.docker.com/docker-for-mac/networking/#use-cases-and-workarounds
-  if uname | grep Darwin 1> /dev/null; then
+  elif uname | grep Darwin 1> /dev/null; then
     echo 'host.docker.internal'
   else
     local host=$(docker network inspect bridge -f '{{ (index .IPAM.Config 0).Gateway }}')
@@ -361,6 +373,23 @@ resolve_dockerhost() {
       } 2>/dev/null # don't care if it fails
     fi
   fi
+}
+
+has_dockerhost_in_settings() {
+  if [[ ! -f ${MEDUSA_SETTINGS_FILE} ]]; then
+    return 1
+  fi
+
+  # no need to go crazy with telling whether the property has a valid host (A or
+  # CNAME), just verify that the property at least exists and is not commented
+  # out (hence the "^")
+  #
+  #     [✓] dockerhost: 192.168.1.100
+  #     [✓] dockerhost: host.docker.internal
+  #     [✕] dockerhost:
+  #     [✕] # dockerhost:
+  #     [✕] # dockerhost: ...
+  egrep -q '^dockerhost:\s*.+$' "${MEDUSA_SETTINGS_FILE}"
 }
 
 resolve_path() {

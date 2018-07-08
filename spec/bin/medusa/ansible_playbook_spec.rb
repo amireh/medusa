@@ -6,24 +6,6 @@ RSpec.describe 'medusa ansible-playbook', type: :bash, docker: true, ansible: tr
     expect(subject.stdout).to include('Usage: ansible-playbook')
   end
 
-  it "exposes env vars" do
-    env = {
-      "ANSIBLE_CONFIG" => "/blah.cfg",
-      "ANSIBLE_GATHERING" => "implicit",
-      "ANSIBLE_RETRY_FILES_ENABLED" => "true",
-      "ANSIBLE_STDERR_CALLBACK" => "minimal",
-      "ANSIBLE_STDOUT_CALLBACK" => "minimal"
-    }
-
-    expect(
-      run_script(subject, ['ansible-playbook', './env_test.yml'], env: env)
-    ).to be true
-
-    env.each do |key, value|
-      expect(subject.stdout).to include("#{key}=#{value}")
-    end
-  end
-
   it "utilizes ANSIBLE_VAULT_PASS" do
     env = {
       "ANSIBLE_VAULT_PASS" => "some secret", # must match what used to encrypt_string the content
@@ -66,7 +48,7 @@ RSpec.describe 'medusa ansible-playbook', type: :bash, docker: true, ansible: tr
     end
   end
 
-  describe 'settings.yml' do
+  describe 'MEDUSA_SETTINGS_FILE' do
     it 'passes that file as --extra-vars if it exists' do
       File.write(settings_file, {
         "my_override" => 100
@@ -77,6 +59,32 @@ RSpec.describe 'medusa ansible-playbook', type: :bash, docker: true, ansible: tr
       ).to be true
 
       expect(subject.stdout).to include('"my_override": 100')
+    end
+
+    it 'accepts an override' do
+      File.write('some other file.yml', {
+        "my_override" => 100
+      }.to_yaml)
+
+      expect(
+        run_script(subject, ['ansible-playbook', './settings_test.yml'], env: {
+          "MEDUSA_SETTINGS_FILE" => 'some other file.yml'
+        })
+      ).to be true
+
+      expect(subject.stdout).to include('"my_override": 100')
+    end
+  end
+
+  describe 'MEDUSA_DOCKERHOST' do
+    it 'accepts an override' do
+      expect(
+        run_script(subject, ['ansible-playbook', './dockerhost_test.yml'], env: {
+          "MEDUSA_DOCKERHOST" => 'blah.blah'
+        })
+      ).to be true
+
+      expect(subject.stdout).to include('"dockerhost": "blah.blah"')
     end
   end
 end

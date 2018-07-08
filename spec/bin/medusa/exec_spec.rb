@@ -8,6 +8,24 @@ RSpec.describe 'medusa exec', type: :bash, ansible: true do
     expect(subject.stdout).to include('root')
   end
 
+  it "exposes env vars" do
+    env = {
+      "ANSIBLE_CONFIG" => "/blah.cfg",
+      "ANSIBLE_RETRY_FILES_ENABLED" => "true",
+      "ANSIBLE_STDERR_CALLBACK" => "minimal",
+      "ANSIBLE_STDOUT_CALLBACK" => "minimal",
+      "ANSIBLE_FOO_BAR" => "baz"
+    }
+
+    expect(
+      run_script(subject, ['ansible-playbook', './env_test.yml'], env: env)
+    ).to be true
+
+    env.each do |key, value|
+      expect(subject.stdout).to include("#{key}=#{value}")
+    end
+  end
+
   it 'mimics my UID' do
     run_script(subject, ['exec', 'mimic', 'id', '-u'])
 
@@ -47,6 +65,28 @@ RSpec.describe 'medusa exec', type: :bash, ansible: true do
       expect(run_script(subject, [ 'exec', 'true' ], env: {
         "MEDUSA_SSH_DIR" => "#{tmp_path('some folder')}"
       })).to be true
+    end
+  end
+
+  describe 'MEDUSA_VERBOSE' do
+    it 'prints the docker run command' do
+      expect(run_script(subject, [ 'exec', 'true' ], env: {
+        "MEDUSA_VERBOSE" => "1"
+      })).to be true
+
+      expect(subject.stderr).to match(/^docker run .+ true$/)
+    end
+  end
+
+  describe 'MEDUSA_CONTAINER' do
+    it 'prints the docker run command' do
+      expect(run_script(subject, [ 'exec',
+        'sh', '-c', "docker inspect $(hostname) -f '{{ .Name }}'"
+      ], env: {
+        "MEDUSA_CONTAINER" => "meme"
+      })).to be true
+
+      expect(subject.stdout.strip).to eq '/meme'
     end
   end
 end
