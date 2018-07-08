@@ -73,7 +73,7 @@ medusa.ansible() {
     -v "$(resolve_path ../lib)":'/mnt/medusa':'ro' \
     -e ANSIBLE_CONFIG \
     -e ANSIBLE_VAULT_PASS \
-    $MEDUSA_ANSIBLE_IMAGE \
+    -- \
       mimic \
         ansible "${flags[@]}" "$@"
 }
@@ -81,7 +81,7 @@ medusa.ansible() {
 medusa.ansible-galaxy() {
   medusa_docker_run \
     -e ANSIBLE_CONFIG \
-    $MEDUSA_ANSIBLE_IMAGE \
+    -- \
       mimic \
         ansible-galaxy "$@"
 }
@@ -117,7 +117,7 @@ medusa.ansible-playbook() {
     -e ANSIBLE_STDOUT_CALLBACK \
     -e ANSIBLE_VAULT_PASS \
     -e MEDUSA_DOCKERHOST="${dockerhost}" \
-    $MEDUSA_ANSIBLE_IMAGE \
+    -- \
       mimic \
         ansible-playbook "${flags[@]}" "$@"
 }
@@ -125,13 +125,13 @@ medusa.ansible-playbook() {
 medusa.ansible-vault() {
   medusa_docker_run \
     -e ANSIBLE_VAULT_PASS \
-    $MEDUSA_ANSIBLE_IMAGE \
+    -- \
       mimic \
         ansible-vault "$@"
 }
 
 medusa.exec() {
-  medusa_docker_run $MEDUSA_ANSIBLE_IMAGE "$@"
+  medusa_docker_run -- "$@"
 }
 
 medusa.help() {
@@ -255,17 +255,18 @@ medusa.init() {
   fi
 }
 
+# ------------------------------------------------------------------------------
+# PRIVATE
+# ------------------------------------------------------------------------------
+
 medusa_commands() {
   for cmd in "$@"; do
     echo "$cmd"
   done
 }
 
-# ------------------------------------------------------------------------------
-# PRIVATE
-# ------------------------------------------------------------------------------
-
 medusa_docker_run() {
+  local command_args=()
   local args=(
     --rm
     -t
@@ -289,7 +290,19 @@ medusa_docker_run() {
     args=("${args[@]}" --env-file="${MEDUSA_ENV_FILE}")
   fi
 
-  docker run "${args[@]}" "$@"
+  local delimiter_found=1
+
+  for arg in "$@"; do
+    if [[ $arg == "--" ]]; then
+      delimiter_found=0
+    elif [[ $delimiter_found -eq 0 ]]; then
+      command_args=("${command_args[@]}" "${arg}")
+    else
+      args=("${args[@]}" "${arg}")
+    fi
+  done
+
+  docker run "${args[@]}" $MEDUSA_ANSIBLE_IMAGE "${command_args[@]}"
 }
 
 # ------------------------------------------------------------------------------
