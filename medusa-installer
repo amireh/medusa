@@ -3,11 +3,10 @@
 T_PRG="medusa-installer"
 
 if [[ -t 1 ]]; then
-  T_ERR="\033[0;31m"
   T_OKA='[✓]'
   T_PEN='[ ]'
-  T_RES="\033[0m"
-  T_WAR="\033[1;33m" # imagination hits a brickwall
+  T_RES="\\033[0m"
+  T_WAR="\\033[1;33m" # imagination hits a brickwall
 fi
 
 type -p git >/dev/null || {
@@ -70,7 +69,7 @@ installer.configure_bash() {
   #   init` was added by hand)
   # - medusa is already in path (maybe a symlink is used)
   if ! grep  -q "${MEDUSA_INSTALLER_STAMP}" "${BASH_PROFILE}" &&
-     ! egrep -q '^eval .+medusa.+init -'    "${BASH_PROFILE}" &&
+     ! grep -Eq '^eval .+medusa.+init -'    "${BASH_PROFILE}" &&
      ! type  -p medusa
   then
     {
@@ -94,7 +93,7 @@ installer.configure_bash() {
     echo "      restart your shell session for the changes to take effect."
     echo -e "${T_RES}"
   # different medusa in PATH?
-  elif [[ $(type -p medusa) != ${MEDUSA_BIN} ]]; then
+  elif [[ $(type -p medusa) != "${MEDUSA_BIN}" ]]; then
     echo -e "${T_WAR}"
     echo "NOTE: It seems that your current PATH is pointing at a version of"
     echo "      medusa other than the one provided by this installation."
@@ -138,10 +137,10 @@ git_clone() {
   local installing=1
 
   if [[ ! -d ${DIR} ]]; then
-    mkdir -p ${DIR} || return $?
+    mkdir -p "${DIR}" || return $?
   fi
 
-  cd ${DIR}
+  cd "${DIR}" || return $?
 
   {
     if [[ ! -d .git ]]; then
@@ -162,15 +161,15 @@ git_clone() {
   } || return $?
 
   {
-    if git branch --list | grep -q $GIT_BRANCH; then
-      git checkout --quiet $GIT_BRANCH
+    if git branch --list | grep -q "$GIT_BRANCH"; then
+      git checkout --quiet "$GIT_BRANCH"
     else
-      git checkout --quiet -b $GIT_BRANCH
+      git checkout --quiet -b "$GIT_BRANCH"
     fi
   } || return $?
 
   {
-    git pull --tags --quiet origin $GIT_BRANCH
+    git pull --tags --quiet origin "$GIT_BRANCH"
   } || return $?
 
   if [[ $installing -eq 1 ]]; then

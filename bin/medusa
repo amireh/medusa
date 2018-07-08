@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2155
 
 MEDUSA_ANSIBLE_IMAGE="amireh/ansible:2.5.3-4.1"
 MEDUSA_VERSION="1.0"
@@ -19,16 +20,19 @@ MEDUSA_VERSION="1.0"
 #            .--`\      /`--.
 #    jgs          '----'
 main() {
-  local defined_methods=( $(declare -F | cut -d' ' -f3) )
+  local defined_methods
   local commands=()
 
+  IFS=$'\n' read -rd '' -a defined_methods <<< "$(declare -F | cut -d' ' -f3)"
+
   for method in "${defined_methods[@]}"; do
-    if [[ ${method} =~ "medusa." ]]; then
+    if [[ ${method} =~ medusa\. ]]; then
       commands+=("${method/medusa./}")
     fi
   done
 
-  if [[ " ${commands[@]} " =~ " $1 " ]]; then
+  if [[ "${commands[*]}" =~ $1 ]]; then
+    # shellcheck disable=SC2145
     medusa."$@"
   elif [[ ${1} == "commands" ]]; then
     medusa_commands "${commands[@]}"
@@ -78,13 +82,13 @@ medusa.ansible-playbook() {
     flags=("${flags[@]}" --extra-vars "@${MEDUSA_SETTINGS_FILE}")
   fi
 
-  echo "$(docker --version)" 1>&2
+       docker --version 1>&2
   echo "Docker host address: ${dockerhost}" 1>&2
   echo "Docker host user UID/GID: $(id -u):$(id -g)" 1>&2
-  echo "Ansible flags: ${flags[@]}" 1>&2
+  echo "Ansible flags: ${flags[*]}" 1>&2
   echo "------------------------------------------------------------------------" 1>&2
 
-  if [[ -z ${dockerhost} ]] && ! $(has_dockerhost_in_settings); then
+  if [[ -z ${dockerhost} ]] && ! has_dockerhost_in_settings; then
     {
       echo "[WARN] Unable to resolve the docker host ip address automatically..."
       echo "       Please specify \"dockerhost\" in \"${MEDUSA_SETTINGS_FILE}\" "
@@ -97,7 +101,9 @@ medusa.ansible-playbook() {
 
   # locate an ansible.cfg in the directories of any of the specified playbooks
   if ! has_ansible_config && [[ ${MEDUSA_INFER_CONFIG} == "1" ]]; then
-    local file_args=( $(scan_positional_arguments "$@") )
+    local file_args
+
+    read -rd '' -a file_args <<< "$(scan_positional_arguments "$@")"
 
     for cfile in "${file_args[@]}"; do
       local cdir="$(dirname "${cfile}")"
@@ -158,7 +164,7 @@ medusa.help() {
 
     " " " "
     "ANSIBLE_VAULT_PASS"
-    "ansible vault password to stash into a file readable only to the ansible user\n \n>> DO NOT TYPE THIS IN CLEAR-TEXT <<\n \n${TTY_YELLOW}[ansible, ansible-playbook, ansible-vault]${TTY_RESET}"
+    "ansible vault password to stash into a file readable only to the ansible user\\n \\n>> DO NOT TYPE THIS IN CLEAR-TEXT <<\\n \\n${TTY_YELLOW}[ansible, ansible-playbook, ansible-vault]${TTY_RESET}"
 
     " " " "
     "MEDUSA_CONTAINER"
@@ -189,13 +195,9 @@ medusa.help() {
     "print docker commands to console before running (default: 0) ${TTY_YELLOW}[all]${TTY_RESET}"
   )
 
-  local medusa_version="${MEDUSA_VERSION}"
-  local ansible_version="${MEDUSA_ANSIBLE_IMAGE}"
-  local docker_version="$(docker version -f '{{ .Server.Version }}')"
-
-  printf "medusa                               [medusa  : %s]\n" "${medusa_version}"
-  printf "                                     [ansible : %s]\n" "${ansible_version}"
-  printf "                                     [docker  : %s]\n" "${docker_version}"
+  printf 'medusa                               [medusa  : %s]\n' "${MEDUSA_VERSION}"
+  printf '                                     [ansible : %s]\n' "${MEDUSA_ANSIBLE_IMAGE}"
+  printf '                                     [docker  : %s]\n' "$(docker version -f '{{ .Server.Version }}')"
 
   cat <<-'EOF'
                              ,--.
@@ -215,25 +217,26 @@ medusa.help() {
         jgs          '----'
 EOF
 
-  printf "\nCommands:\n\n"
+  printf '\nCommands:\n\n'
 
   tty_print_columnized_list 24 "${commands[@]}"
 
-  printf "\nEnvironment variables:\n\n"
+  printf '\nEnvironment variables:\n\n'
 
   tty_print_columnized_list 30 "${env_vars[@]}"
 
-  printf "\n"
-  printf "To fully configure Ansible, it is recommended to use an ansible.cfg \n"
-  printf "file and point to it with ANSIBLE_CONFIG if necessary.\n"
-  printf "\n"
-  printf "Refer to Ansible documentation for the complete reference or run\n"
-  printf "the following command:\n\n"
+  printf '\n'
+  printf "To fully configure Ansible, it is recommended to use an ansible.cfg \\n"
+  printf "file and point to it with ANSIBLE_CONFIG if necessary.\\n"
+  printf '\n'
+  printf "Refer to Ansible documentation for the complete reference or run\\n"
+  printf "the following command:"
+  printf '\n\n'
   printf "    medusa exec ansible-config list"
-  printf "\n"
-  printf "\n"
+  printf '\n'
+  printf '\n'
   printf "For full documentation, see: https://github.com/amireh/medusa"
-  printf "\n"
+  printf '\n'
 }
 
 medusa.info() {
@@ -278,9 +281,9 @@ medusa_docker_run() {
     -v '/var/run/docker.sock':'/var/run/docker.sock':'ro'
     -v "${PWD}":'/mnt/src':'rw'
     -w '/mnt/src'
-    -e MIMIC_GID="$(id -G)"
-    -e MIMIC_UID="$(id -u)"
-    -e MEDUSA_PWD="${PWD}"
+    -e "MIMIC_GID=$(id -G)"
+    -e "MIMIC_UID=$(id -u)"
+    -e "MEDUSA_PWD=${PWD}"
   )
 
   if [[ -t 0 ]]; then
@@ -314,7 +317,7 @@ medusa_docker_run() {
   done
 
   if [[ "$MEDUSA_VERBOSE" == "1" ]]; then
-    echo "docker run ${args[@]} $MEDUSA_ANSIBLE_IMAGE ${command_args[@]}" 1>&2
+    echo "docker run ${args[*]} $MEDUSA_ANSIBLE_IMAGE ${command_args[*]}" 1>&2
   fi
 
   docker run "${args[@]}" $MEDUSA_ANSIBLE_IMAGE "${command_args[@]}"
@@ -325,11 +328,10 @@ medusa_docker_run() {
 # ------------------------------------------------------------------------------
 
 if [[ -t 1 ]]; then
-  TTY_BOLD="\033[1m"
-  TTY_GREEN="\033[0;32m"
-  TTY_RED="\033[0;31m"
-  TTY_RESET="\033[0m"
-  TTY_YELLOW="\033[1;33m"
+  TTY_BOLD="\\033[1m"
+  TTY_RED="\\033[0;31m"
+  TTY_RESET="\\033[0m"
+  TTY_YELLOW="\\033[1;33m"
 fi
 
 # (shortdesc: String, longdesc: String, keycol_sz: Number = 24): void
@@ -337,16 +339,19 @@ tty_columnize() {
   local key="${1}"
   local value="${2}"
   local keycol_sz="${3:-24}"
-  local valcol_sz=$(( ${4:-72} - $keycol_sz ))
+  local valcol_sz=$(( ${4:-72} - keycol_sz ))
   local IFS=$'\n'
-  local lines=( $(printf "${value}" | fold -s -w $valcol_sz) )
+  local lines=()
   local printf_key="%-${keycol_sz}s"
 
+  # shellcheck disable=SC2059
+  read -rd '' -a lines <<< "$(printf "${value}" | fold -s -w $valcol_sz)"
+
   for i in "${!lines[@]}"; do
-    if [ $i -gt 0 ]; then
-      printf "${printf_key} %s\n" "" "${lines[i]}"
+    if [[ $i -gt 0 ]]; then
+      printf "${printf_key} %s\\n" "" "${lines[i]}"
     else
-      printf "${TTY_BOLD}${printf_key}${TTY_RESET} %s\n" "${key}" "${lines[i]}"
+      printf "${TTY_BOLD}${printf_key}${TTY_RESET} %s\\n" "${key}" "${lines[i]}"
     fi
   done
 }
@@ -359,19 +364,19 @@ tty_print_columnized_list() {
   local list=("$@")
   local indent="  "
 
-  for i in `seq 0 2 ${#@}`; do
-    tty_columnize "${indent}${list[i]}" "${list[i+1]}" $keycol_sz
+  for i in $(seq 0 2 ${#@}); do
+    tty_columnize "${indent}${list[i]}" "${list[i+1]}" "$keycol_sz"
   done
 }
 
 # (): String
 tty_progname() {
-  echo $(basename $0)
+  basename "${0}"
 }
 
 # (String): String
 tty_print_error() {
-  printf "${TTY_RED}%s: %s${TTY_RESET}\n" $(tty_progname) "${1}" 1>&2
+  printf "${TTY_RED}%s: %s${TTY_RESET}\\n" "$(tty_progname)" "${1}" 1>&2
 }
 
 resolve_dockerhost() {
@@ -382,7 +387,9 @@ resolve_dockerhost() {
   elif uname | grep Darwin 1> /dev/null; then
     echo 'host.docker.internal'
   else
-    local host=$(docker network inspect bridge -f '{{ (index .IPAM.Config 0).Gateway }}')
+    local host
+
+    host=$(docker network inspect bridge -f '{{ (index .IPAM.Config 0).Gateway }}')
 
     if [[ -n ${host} ]]; then
       echo "${host}"
@@ -408,7 +415,7 @@ has_dockerhost_in_settings() {
   #     [✕] dockerhost:
   #     [✕] # dockerhost:
   #     [✕] # dockerhost: ...
-  egrep -q '^dockerhost:\s*.+$' "${MEDUSA_SETTINGS_FILE}"
+  grep -Eq '^dockerhost:\s*.+$' "${MEDUSA_SETTINGS_FILE}"
 }
 
 resolve_path() {
@@ -438,7 +445,7 @@ resolve_path() {
   # remove trailing slash for directories
   path="${path%/}"
 
-  echo $path
+  echo "${path}"
 }
 
 resolve_symlink() {

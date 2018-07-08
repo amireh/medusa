@@ -16,11 +16,15 @@ install:
 script:
   - |
     if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
-      VERBOSE=1 bundle exec rspec -t ~docker
+      bundle exec rspec -t ~docker
     fi
   - |
     if [[ "$TRAVIS_OS_NAME" != "osx" ]]; then
-      VERBOSE=1 bundle exec rspec
+      shellcheck ./bin/medusa ./medusa-installer
+    fi
+  - |
+    if [[ "$TRAVIS_OS_NAME" != "osx" ]]; then
+      bundle exec rspec
     fi
   - |
     if [[ "$TRAVIS_OS_NAME" != "osx" ]]; then
