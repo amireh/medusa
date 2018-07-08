@@ -46,15 +46,15 @@ main() {
 # ARGUMENTS
 # ------------------------------------------------------------------------------
 
-ANSIBLE_CONFIG="${ANSIBLE_CONFIG}"
-ANSIBLE_GATHERING="${ANSIBLE_GATHERING:-explicit}"
-ANSIBLE_RETRY_FILES_ENABLED="${ANSIBLE_RETRY_FILES_ENABLED:-false}"
-ANSIBLE_STDERR_CALLBACK="${ANSIBLE_STDERR_CALLBACK:-debug}"
-ANSIBLE_STDOUT_CALLBACK="${ANSIBLE_STDOUT_CALLBACK:-debug}"
-ANSIBLE_VAULT_PASS="${ANSIBLE_VAULT_PASS}"
-MEDUSA_ENV_FILE="${MEDUSA_ENV_FILE}"
-MEDUSA_SETTINGS_FILE="${MEDUSA_SETTINGS_FILE:-settings.yml}"
-MEDUSA_SSH_DIR="${MEDUSA_SSH_DIR:-${HOME}/.ssh}"
+export ANSIBLE_CONFIG="${ANSIBLE_CONFIG}"
+export ANSIBLE_GATHERING="${ANSIBLE_GATHERING:-explicit}"
+export ANSIBLE_RETRY_FILES_ENABLED="${ANSIBLE_RETRY_FILES_ENABLED:-false}"
+export ANSIBLE_STDERR_CALLBACK="${ANSIBLE_STDERR_CALLBACK:-debug}"
+export ANSIBLE_STDOUT_CALLBACK="${ANSIBLE_STDOUT_CALLBACK:-debug}"
+export ANSIBLE_VAULT_PASS="${ANSIBLE_VAULT_PASS}"
+export MEDUSA_ENV_FILE="${MEDUSA_ENV_FILE}"
+export MEDUSA_SETTINGS_FILE="${MEDUSA_SETTINGS_FILE:-settings.yml}"
+export MEDUSA_SSH_DIR="${MEDUSA_SSH_DIR:-${HOME}/.ssh}"
 
 # ------------------------------------------------------------------------------
 # COMMANDS
@@ -101,11 +101,12 @@ medusa.ansible-playbook() {
     flags=("${flags[@]}" --extra-vars "@${MEDUSA_SETTINGS_FILE}")
   fi
 
-  echo "$(docker --version)"
-  echo "Docker host address: ${dockerhost}"
-  echo "Docker delegate user GID: $(id -g)"
-  echo "Docker delegate user UID: $(id -u)"
-  echo "------------------------------------------------------------------------"
+  echo "$(docker --version)" 1>&2
+  echo "Docker host address: ${dockerhost}" 1>&2
+  echo "Docker delegate user GID: $(id -g)" 1>&2
+  echo "Docker delegate user UID: $(id -u)" 1>&2
+  echo "Ansible flags: ${flags[@]}" 1>&2
+  echo "------------------------------------------------------------------------" 1>&2
 
   medusa_docker_run \
     -v "$(resolve_path ../lib)":'/mnt/medusa':'ro' \

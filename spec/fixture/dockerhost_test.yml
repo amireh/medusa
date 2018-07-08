@@ -1,0 +1,11 @@
+- hosts: localhost
+  gather_facts: no
+  tasks:
+    - debug:
+        var: "{{ item }}"
+      with_items:
+        - dockerhost
+        - dockerhost_uid
+        - dockerhost_gid
+        - dockerhost_user
+        - dockerhost_group

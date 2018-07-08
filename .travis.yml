@@ -8,9 +8,12 @@ matrix:
     - os: osx
       language: ruby
 
+cache:
+  - bundler
+
 install:
   - bundle install
 
 script:
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then VERBOSE=1 bundle exec rspec -t ~docker; fi
-  - if [[ "$TRAVIS_OS_NAME" != "osx" ]]; then VERBOSE=1 bundle exec rspec; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then bundle exec rspec -t ~docker; fi
+  - if [[ "$TRAVIS_OS_NAME" != "osx" ]]; then bundle exec rspec; fi

@@ -1,0 +1,4 @@
+- hosts: localhost
+  gather_facts: no
+  tasks:
+    - shell: stat /mnt/medusa/vars/medusa.yml

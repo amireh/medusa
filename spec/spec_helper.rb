@@ -47,6 +47,7 @@ RSpec.configure do |config|
   config.shared_context_metadata_behavior = :apply_to_host_groups
 
   module Support
+    FIXTURE_DIR = File.expand_path("../../spec/fixture", __FILE__).freeze
     ROOT_DIR = File.expand_path("../../", __FILE__).freeze
     TEMP_DIR = File.expand_path("../../tmp/junk", __FILE__).freeze
 

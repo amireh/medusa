@@ -1,3 +1,5 @@
+require 'yaml'
+
 RSpec.describe 'medusa', type: :bash do
   let(:root) { Support::ROOT_DIR }
 
@@ -26,17 +28,28 @@ RSpec.describe 'medusa', type: :bash do
     end
   end
 
-  describe '.ansible-playbook' do
-    it 'works', docker: true do
-      expect(run_script(subject, ['ansible-playbook', '--help'])).to be true
-      expect(subject.stdout).to include('Usage: ansible-playbook')
-    end
-  end
-
-  describe '.exec' do
-    it 'works', docker: true do
+  describe '.exec', docker: true do
+    it 'works' do
       expect(run_script(subject, ['exec', 'whoami'])).to be true
       expect(subject.stdout).to include('root')
+    end
+
+    it 'mimics my UID' do
+      run_script(subject, ['exec', 'mimic', 'id', '-u'])
+
+      expect(subject.stdout.strip).to eq(`id -u`.strip)
+    end
+
+    it 'mimics my primary GID' do
+      run_script(subject, ['exec', 'mimic', 'id', '-g'])
+
+      expect(subject.stdout.strip).to eq(`id -g`.strip)
+    end
+
+    it 'mimics my GIDs' do
+      run_script(subject, ['exec', 'mimic', 'id', '-G'])
+
+      expect(subject.stdout.strip).to eq(`id -G`.strip)
     end
   end
 
