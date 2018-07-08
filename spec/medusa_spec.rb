@@ -13,35 +13,34 @@ RSpec.describe 'medusa', type: :bash do
   end
 
   describe '.ansible-galaxy' do
-    it 'works' do
+    it 'works', docker: true do
       expect(run_script(subject, ['ansible-galaxy', '--help'])).to be true
       expect(subject.stdout).to include('Usage: ansible-galaxy')
     end
   end
 
   describe '.ansible-vault' do
-    it 'works' do
+    it 'works', docker: true do
       expect(run_script(subject, ['ansible-vault', '--help'])).to be true
       expect(subject.stdout).to include('Usage: ansible-vault')
     end
   end
 
   describe '.ansible-playbook' do
-    it 'works' do
+    it 'works', docker: true do
       expect(run_script(subject, ['ansible-playbook', '--help'])).to be true
       expect(subject.stdout).to include('Usage: ansible-playbook')
     end
   end
 
   describe '.exec' do
-    it 'works' do
+    it 'works', docker: true do
       expect(run_script(subject, ['exec', 'whoami'])).to be true
       expect(subject.stdout).to include('root')
     end
-
   end
 
-  describe 'MEDUSA_SSH_DIR' do
+  describe 'MEDUSA_SSH_DIR', docker: true do
     it 'is a no-op if ssh dir does not exist' do
       expect(run_script(subject, [ 'exec', 'true' ], env: {
         "MEDUSA_SSH_DIR" => "/foo/bar/baz/kljaxhcvlyuioadf"
@@ -68,7 +67,7 @@ RSpec.describe 'medusa', type: :bash do
   describe '.encrypt-file / .decrypt-file' do
     let(:file) { tmp_path('foo') }
 
-    it 'works' do
+    it 'works', docker: true do
       File.write(file, 'hi')
 
       expect {
@@ -90,7 +89,7 @@ RSpec.describe 'medusa', type: :bash do
   end
 
   describe '.encrypt-string' do
-    it 'works' do
+    it 'works', docker: true do
       expect(run_script(subject, ['ansible-vault', 'encrypt_string', 'foo'], {
         env: { 'ANSIBLE_VAULT_PASS' => 'some pass' }
       })).to be true

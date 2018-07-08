@@ -1,0 +1,16 @@
+matrix:
+  include:
+    - os: linux
+      sudo: required
+      language: ruby
+      services:
+        - docker
+    - os: osx
+      language: ruby
+
+install:
+  - bundle install
+
+script:
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then VERBOSE=1 bundle exec rspec -t ~docker; fi
+  - if [[ "$TRAVIS_OS_NAME" != "osx" ]]; then VERBOSE=1 bundle exec rspec; fi
