@@ -17,7 +17,7 @@ RSpec.describe 'medusa-installer', type: :bash do
     run_script(subject, env: {
       "BASH_PROFILE" => "#{create_file('.bashrc', '')}",
       "MEDUSA_DIR" => "#{tmp_path('.medusa')}",
-      "MEDUSA_SRC" => "#{Dir.home}/Workspace/Projects/medusa-standalone/.git"
+      "MEDUSA_SRC" => "#{Support::ROOT_DIR}/.git"
     })
 
     expect(subject.exit_code).to eq(0)
@@ -29,7 +29,7 @@ RSpec.describe 'medusa-installer', type: :bash do
     let(:env) { {
       "BASH_PROFILE" => "#{create_file('.bashrc', '')}",
       "MEDUSA_DIR" => "#{tmp_path('.medusa')}",
-      "MEDUSA_SRC" => "#{Dir.home}/Workspace/Projects/medusa-standalone/.git"
+      "MEDUSA_SRC" => "#{Support::ROOT_DIR}/.git"
     } }
 
     def git(cmd, path: tmp_path('.medusa'))
