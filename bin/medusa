@@ -96,7 +96,7 @@ medusa.ansible-playbook() {
   fi
 
   # locate an ansible.cfg in the directories of any of the specified playbooks
-  if [[ -z ${ANSIBLE_CONFIG} && ${MEDUSA_INFER_CONFIG} == "1" ]]; then
+  if ! has_ansible_config && [[ ${MEDUSA_INFER_CONFIG} == "1" ]]; then
     local file_args=( $(scan_positional_arguments "$@") )
 
     for cfile in "${file_args[@]}"; do
@@ -167,6 +167,10 @@ medusa.help() {
     " " " "
     "MEDUSA_DOCKERHOST"
     "ip address to use inside containers to reach the docker host (default: infer from host) ${TTY_YELLOW}[ansible-playbook]${TTY_RESET}"
+
+    " " " "
+    "MEDUSA_INFER_CONFIG"
+    "locate an ansible.cfg file to use when none exists in the default search paths (default: yes) ${TTY_YELLOW}[ansible-playbook]${TTY_RESET}"
 
     " " " "
     "MEDUSA_SETTINGS_FILE"
@@ -461,6 +465,14 @@ scan_positional_arguments() {
   done
 
   echo "${pargs[@]}"
+}
+
+# resolving rules here: https://docs.ansible.com/ansible/latest/reference_appendices/config.html#the-configuration-file
+has_ansible_config() {
+  test -n "${ANSIBLE_CONFIG}" ||
+  test -f ./ansible.cfg ||
+  test -f ~/ansible.cfg ||
+  test -f /etc/ansible/ansible.cfg
 }
 
 main "$@"
