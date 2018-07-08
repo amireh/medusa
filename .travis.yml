@@ -8,8 +8,7 @@ matrix:
     - os: osx
       language: ruby
 
-cache:
-  - bundler
+cache: bundler
 
 install:
   - bundle install
@@ -17,3 +16,6 @@ install:
 script:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then bundle exec rspec -t ~docker; fi
   - if [[ "$TRAVIS_OS_NAME" != "osx" ]]; then bundle exec rspec; fi
+  - if [[ "$TRAVIS_OS_NAME" != "osx" ]]; then \
+      cd ci && ../bin/medusa ansible-playbook ./playbook.yml \
+    fi

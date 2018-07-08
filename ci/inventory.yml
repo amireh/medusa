@@ -1,0 +1,7 @@
+default:
+  hosts:
+    test-container:
+      ansible_connection: docker
+      ansible_host: test-container
+      ansible_become_method: su
+      ansible_python_interpreter: /usr/local/bin/python

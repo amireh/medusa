@@ -1,16 +1,5 @@
-require 'yaml'
-
-RSpec.describe 'medusa ansible-playbook', type: :bash, docker: true do
-  let(:root) { Support::ROOT_DIR }
-  let(:fixture_dir) { Support::FIXTURE_DIR }
-
-  subject { a_script "exec '#{File.join(root, 'bin/medusa')}' \"$@\"" }
-
-  around(:each) do |example|
-    Dir.chdir fixture_dir do
-      example.call
-    end
-  end
+RSpec.describe 'medusa ansible-playbook', type: :bash, docker: true, ansible: true do
+  subject { medusa_script }
 
   it 'works' do
     expect(run_script(subject, ['ansible-playbook', '--help'])).to be true
@@ -78,12 +67,6 @@ RSpec.describe 'medusa ansible-playbook', type: :bash, docker: true do
   end
 
   describe 'settings.yml' do
-    let(:settings_file) { "#{fixture_dir}/settings.yml" }
-
-    after(:each) do
-      FileUtils.rm(settings_file) if File.exist?(settings_file)
-    end
-
     it 'passes that file as --extra-vars if it exists' do
       File.write(settings_file, {
         "my_override" => 100

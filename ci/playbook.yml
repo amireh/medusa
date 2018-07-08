@@ -1,0 +1,16 @@
+- hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: create a test container
+      docker_container:
+        image: python:2.7.15-alpine3.7
+        name: test-container
+        state: started
+        detach: yes
+        interactive: yes
+        command: sh
+
+- hosts: test-container
+  roles:
+    - role: /mnt/medusa/roles/docker-masquerade
+

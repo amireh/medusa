@@ -61,21 +61,12 @@ export MEDUSA_SSH_DIR="${MEDUSA_SSH_DIR:-${HOME}/.ssh}"
 # ------------------------------------------------------------------------------
 
 medusa.ansible() {
-  local flags=(
-    --extra-vars "@/mnt/medusa/vars/medusa.yml"
-  )
-
-  if [[ -f ${MEDUSA_SETTINGS_FILE} ]]; then
-    flags=("${flags[@]}" --extra-vars "@${MEDUSA_SETTINGS_FILE}")
-  fi
-
   medusa_docker_run \
-    -v "$(resolve_path ../lib)":'/mnt/medusa':'ro' \
     -e ANSIBLE_CONFIG \
     -e ANSIBLE_VAULT_PASS \
     -- \
       mimic \
-        ansible "${flags[@]}" "$@"
+        ansible "$@"
 }
 
 medusa.ansible-galaxy() {
@@ -88,9 +79,7 @@ medusa.ansible-galaxy() {
 
 medusa.ansible-playbook() {
   local dockerhost="$(resolve_dockerhost)"
-  local flags=(
-    --extra-vars "@/mnt/medusa/vars/medusa.yml"
-  )
+  local flags=(--extra-vars "@/mnt/medusa/vars/medusa.yml")
 
   if [ -z "${dockerhost}" ]; then
     echo "[WARN] Unable to automatically lookup your machine IP address..." 1>&2
@@ -260,9 +249,7 @@ medusa.init() {
 # ------------------------------------------------------------------------------
 
 medusa_commands() {
-  for cmd in "$@"; do
-    echo "$cmd"
-  done
+  echo "$@"
 }
 
 medusa_docker_run() {
