@@ -26,5 +26,9 @@ script:
     fi
   - |
     if [[ "$TRAVIS_OS_NAME" != "osx" ]]; then
-      ANSIBLE_CONFIG=./ci/ansible.cfg ./bin/medusa ansible-playbook ./ci/playbook.yml
+      MEDUSA="$PWD/bin/medusa"
+
+      cd spec/share/roles/docker-masquerade
+
+      $MEDUSA ansible-playbook ./playbook.yml
     fi

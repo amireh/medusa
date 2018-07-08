@@ -95,7 +95,7 @@ medusa.ansible-playbook() {
   fi
 
   medusa_docker_run \
-    -v "$(resolve_path ../lib)":"${MEDUSA_SHARE_DIR}":'ro' \
+    -v "$(resolve_path ../share)":"${MEDUSA_SHARE_DIR}":'ro' \
     -e MEDUSA_DOCKERHOST="${dockerhost}" \
     -- \
       mimic \
