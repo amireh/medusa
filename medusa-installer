@@ -77,10 +77,18 @@ installer.configure_bash() {
     return 0
   fi
 
-  echo "Adjusting PATH in Bash profile to locate Medusa..."
+  local config=()
 
-  echo "$(installer.generate_bash_config)" >> "${BASH_PROFILE}" || return $?
+  set -e
 
+  config+=("# ---------------------------------------------------------------------------")
+  config+=("# ${MEDUSA_INSTALLER_STAMP} (on $(date -u))")
+  config+=("eval \"\$('${MEDUSA_BIN}' init -)\"")
+  config+=("# ---------------------------------------------------------------------------")
+
+  set +e
+
+  echo "${config[@]}" >> "${BASH_PROFILE}"
   echo "Bash configured. $TICK"
   echo ""
   echo "NOTE: You must reload your Bash profile to reflect the changes to PATH."
@@ -115,7 +123,7 @@ installer.generate_bash_config() {
 
 # ---------------------------------------------------------------------------
 # ${MEDUSA_INSTALLER_STAMP} (on $(date -u))
-$("${MEDUSA_BIN}" init)
+eval "$('${MEDUSA_BIN}' init -)"
 # ---------------------------------------------------------------------------
 
 EOF

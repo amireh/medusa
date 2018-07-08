@@ -28,7 +28,11 @@ main() {
     fi
   done
 
-  if [[ ! " ${commands[@]} " =~ " $1 " ]]; then
+  if [[ " ${commands[@]} " =~ " $1 " ]]; then
+    medusa."$@"
+  elif [[ ${1} == "commands" ]]; then
+    medusa_commands "${commands[@]}"
+  else
     if [[ $# -gt 0 ]]; then
       tty_print_error "unknown command \"$1\""
     fi
@@ -36,8 +40,6 @@ main() {
     medusa.help 1>&2
     exit 1
   fi
-
-  medusa."$@"
 }
 
 # ------------------------------------------------------------------------------
@@ -235,7 +237,27 @@ medusa.info() {
 }
 
 medusa.init() {
-  echo "export PATH=\"$(resolve_path ../bin):\${PATH}\""
+  local installation_dir="$(resolve_path ../)"
+
+  if [[ $1 == "-" ]]; then
+    echo "export PATH=\"${installation_dir}/bin:\${PATH}\""
+    echo ""
+    echo "if [ -f '${installation_dir}/completions/medusa.bash' ]; then"
+    echo "  source '${installation_dir}/completions/medusa.bash'"
+    echo "fi"
+  else
+    echo '# Load medusa automatically by appending the following to' 1>&2
+    echo "# ~/.bash_profile:" 1>&2
+    echo "eval \"\$('${installation_dir}/bin/medusa' init -)\"" 1>&2
+
+    exit 1
+  fi
+}
+
+medusa_commands() {
+  for cmd in "$@"; do
+    echo "$cmd"
+  done
 }
 
 # ------------------------------------------------------------------------------

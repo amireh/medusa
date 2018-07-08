@@ -6,7 +6,7 @@ RSpec.describe 'medusa', type: :bash do
   }
 
   it 'works' do
-    result = run_script(subject, ['help'])
+    run_script(subject, ['help'])
 
     expect(subject.exit_code).to eq(0)
     expect(subject.stdout).to include('medusa')
@@ -113,10 +113,29 @@ RSpec.describe 'medusa', type: :bash do
   describe '.init' do
     subject { File.join(root, 'bin/medusa') }
 
-    it 'works' do
-      stdout = `#{subject} init`
+    it 'prints instructions' do
+      stdout = `#{subject} init 2>&1`
+      expect(stdout).to include('# Load medusa automatically by')
+    end
 
-      expect(stdout).to include("export PATH=\"#{root}/bin:${PATH}\"")
+    it 'exits with 1' do
+      expect(system("#{subject} init 2>/dev/null")).to be false
+    end
+
+    context 'with "-" for an arg' do
+      let(:stdout) { `#{subject} init -` }
+
+      it 'adjusts the PATH' do
+        expect(stdout).to include("export PATH=\"#{root}/bin:${PATH}\"")
+      end
+
+      it 'sources the completion script' do
+        expect(stdout).to include("source '#{root}/completions/medusa.bash'")
+      end
+
+      it 'exits with 0' do
+        expect(system("#{subject} init - >/dev/null")).to be true
+      end
     end
   end
 end

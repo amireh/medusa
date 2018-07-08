@@ -14,7 +14,7 @@ RSpec.describe 'medusa-installer', type: :bash do
   end
 
   it 'works' do
-    result = run_script(subject, env: {
+    run_script(subject, env: {
       "BASH_PROFILE" => "#{create_file('.bashrc', '')}",
       "MEDUSA_DIR" => "#{tmp_path('.medusa')}",
       "MEDUSA_SRC" => "#{Dir.home}/Workspace/Projects/medusa-standalone/.git"
@@ -52,7 +52,7 @@ RSpec.describe 'medusa-installer', type: :bash do
     it 'works if the repository already exists' do
       system <<-EOF
         cd #{tmp_path('')} &&
-        git clone #{env['MEDUSA_SRC']} .medusa
+        git clone --quiet #{env['MEDUSA_SRC']} .medusa
       EOF
 
       expect(run_script(subject, env: env)).to be true
@@ -61,7 +61,7 @@ RSpec.describe 'medusa-installer', type: :bash do
     it 'rewires the origin' do
       system <<-EOF
         cd #{tmp_path('')} &&
-        git clone #{env['MEDUSA_SRC']} .medusa &&
+        git clone --quiet #{env['MEDUSA_SRC']} .medusa &&
         cd .medusa &&
         git remote set-url origin foo/bar
       EOF
@@ -76,9 +76,9 @@ RSpec.describe 'medusa-installer', type: :bash do
     it 'works if on the master branch already' do
       system <<-EOF
         cd #{tmp_path('')} &&
-        git clone #{env['MEDUSA_SRC']} .medusa &&
+        git clone --quiet #{env['MEDUSA_SRC']} .medusa &&
         cd .medusa &&
-        git checkout master
+        git checkout --quiet master
       EOF
 
       expect(run_script(subject, env: env)).to be true
@@ -87,9 +87,9 @@ RSpec.describe 'medusa-installer', type: :bash do
     it 'checks out the master branch if on a different one' do
       system <<-EOF
         cd #{tmp_path('')} &&
-        git clone #{env['MEDUSA_SRC']} .medusa &&
+        git clone --quiet #{env['MEDUSA_SRC']} .medusa &&
         cd .medusa &&
-        git checkout -b other
+        git checkout --quiet -b other
       EOF
 
       expect {
@@ -114,8 +114,10 @@ RSpec.describe 'medusa-installer', type: :bash do
       "MEDUSA_INSTALLER_STAMP" => '# >>> foo bar baz <<<',
       "MEDUSA_DIR" => "#{tmp_path('.medusa')}",
       "MEDUSA_BIN" => "medusa",
-      "MEDUSA_SRC" => "#{Dir.home}/Workspace/Projects/medusa-standalone/.git"
+      "MEDUSA_SRC" => "#{Support::ROOT_DIR}/.git"
     } }
+
+    let(:eval_snippet) { "eval \"$('#{env['MEDUSA_BIN']}' init -)\"" }
 
     it "complains if it can't find the profile" do
       expect(run_script(subject, env: env.merge({
@@ -134,17 +136,11 @@ RSpec.describe 'medusa-installer', type: :bash do
       expect(subject.stdout).to include 'Bash is already configured'
     end
 
-    it "adds the output of 'medusa init' to bashrc" do
-      expect(subject).to receive("medusa").with_args('init').and_yield { |*|
-        <<-EOF
-          echo 'blah'
-        EOF
-      }
-
+    it "evals the output of 'medusa init -' in bashrc" do
       expect {
         run_script(subject, env: env)
       }.to change {
-        File.read(env['BASH_PROFILE']).include?('blah')
+        File.read(env['BASH_PROFILE']).include?(eval_snippet)
       }.from(false).to(true)
 
       expect(subject.stdout).to include 'Bash configured.'
@@ -155,12 +151,6 @@ RSpec.describe 'medusa-installer', type: :bash do
         hello
         world
       EOF
-
-      expect(subject).to receive("medusa").with_args('init').and_yield { |*|
-        <<-EOF
-          echo 'blah'
-        EOF
-      }
 
       expect {
         run_script(subject, env: env)
