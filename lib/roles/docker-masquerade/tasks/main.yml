@@ -10,8 +10,6 @@
     groupmod '{{ dockerhost_group }}' ||
     groupadd --non-unique --gid '{{ dockerhost_gid }}' '{{ dockerhost_group }}'
   changed_when: false
-  become: yes
-  become_user: root
 
 - name: "create a replica of the docker host user ({{ dockerhost_user }})"
   user:
@@ -23,5 +21,3 @@
     shell: /bin/false
     system: yes
     non_unique: yes
-  become: yes
-  become_user: root
