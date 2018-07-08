@@ -111,13 +111,14 @@ RSpec.describe 'medusa-installer', type: :bash do
 
     let(:env) { {
       "BASH_PROFILE" => "#{create_file('.bashrc', '')}",
-      "MEDUSA_INSTALLER_STAMP" => '# >>> foo bar baz <<<',
       "MEDUSA_DIR" => "#{tmp_path('.medusa')}",
       "MEDUSA_BIN" => "medusa",
       "MEDUSA_SRC" => "#{Support::ROOT_DIR}/.git"
     } }
 
     let(:eval_snippet) { "eval \"$('#{env['MEDUSA_BIN']}' init -)\"" }
+
+    let(:installer_stamp) { '# Automatically added by medusa-installer' }
 
     it "complains if it can't find the profile" do
       expect(run_script(subject, env: env.merge({
@@ -129,7 +130,7 @@ RSpec.describe 'medusa-installer', type: :bash do
 
     it "notifies if bash profile already has the stamp" do
       File.write env['BASH_PROFILE'], <<-EOF
-        #{env['MEDUSA_INSTALLER_STAMP']}
+        #{installer_stamp}
       EOF
 
       expect(run_script(subject, env: env)).to be true
@@ -137,12 +138,8 @@ RSpec.describe 'medusa-installer', type: :bash do
     end
 
     it "evals the output of 'medusa init -' in bashrc" do
-      expect {
-        run_script(subject, env: env)
-      }.to change {
-        File.read(env['BASH_PROFILE']).include?(eval_snippet)
-      }.from(false).to(true)
-
+      expect(run_script(subject, env: env)).to be true
+      expect(File.read(env['BASH_PROFILE'])).to include(eval_snippet)
       expect(subject.stdout).to include 'Bash configured.'
     end
 

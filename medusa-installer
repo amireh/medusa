@@ -5,22 +5,24 @@ type -p git >/dev/null || {
   exit 1
 }
 
+TICK='✓'
+MEDUSA_INSTALLER_STAMP="Automatically added by medusa-installer"
+MEDUSA_SRC="${MEDUSA_SRC:-https://github.com/amireh/medusa}"
+MEDUSA_REF="${MEDUSA_REF:-master}"
+
 main() {
-  TICK='✓'
   BASH_PROFILE="${BASH_PROFILE:-"$(installer.locate_bash_profile)"}"
-  MEDUSA_INSTALLER_VERSION="1.0"
-  MEDUSA_INSTALLER_STAMP="Automatically added by medusa-installer"
-  MEDUSA_SRC="${MEDUSA_SRC:-"https://github.com/amireh/medusa"}"
-  MEDUSA_DIR="$(installer.locate_installation_dir)"
+  MEDUSA_DIR="${MEDUSA_DIR:-"$(installer.locate_installation_dir)"}"
   MEDUSA_BIN="${MEDUSA_DIR}/bin/medusa"
 
-  installer.header "medusa-installer ${MEDUSA_INSTALLER_VERSION}"
+  installer.header "medusa-installer"
 
   echo "Installation arguments:"
   echo ""
-  echo "MEDUSA_DIR   = ${MEDUSA_DIR}"
-  echo "MEDUSA_SRC   = ${MEDUSA_SRC}"
-  echo "BASH_PROFILE = ${BASH_PROFILE}"
+  echo "MEDUSA_DIR    = ${MEDUSA_DIR}"
+  echo "MEDUSA_SRC    = ${MEDUSA_SRC}"
+  echo "MEDUSA_REF    = ${MEDUSA_REF}"
+  echo "BASH_PROFILE  = ${BASH_PROFILE}"
 
   installer.install_medusa &&
   installer.configure_bash || return $?
@@ -35,9 +37,9 @@ installer.install_medusa() {
   (
     DIR="${MEDUSA_DIR}" \
     GIT_ORIGIN="${MEDUSA_SRC}" \
-    GIT_BRANCH="master" \
+    GIT_BRANCH="${MEDUSA_REF}" \
       git_clone
-  ) || exit $?
+  ) || return $?
 }
 
 installer.configure_bash() {
@@ -52,7 +54,7 @@ installer.configure_bash() {
     return 1
   fi
 
-  if installer.has_bash_config; then
+  if grep -q "${MEDUSA_INSTALLER_STAMP}" "${BASH_PROFILE}"; then
     echo "Bash is already configured to load medusa, nothing to do."
 
     # medusa not in PATH?
@@ -77,12 +79,12 @@ installer.configure_bash() {
     return 0
   fi
 
-  echo "
-# ---------------------------------------------------------------------------
-# ${MEDUSA_INSTALLER_STAMP} (on $(date -u))
-eval \"\$('${MEDUSA_BIN}' init -)\"
-# ---------------------------------------------------------------------------
-" >> "${BASH_PROFILE}"
+  {
+    echo "# ----------------------------------------------------------------------"
+    echo "# ${MEDUSA_INSTALLER_STAMP} (on $(date -u))"
+    echo "eval \"\$('${MEDUSA_BIN}' init -)\""
+    echo "# ----------------------------------------------------------------------"
+  } >> "${BASH_PROFILE}"
 
   echo "Bash configured. $TICK"
   echo ""
@@ -109,31 +111,9 @@ installer.locate_bash_profile() {
   return 1
 }
 
-installer.has_bash_config() {
-  grep -q "${MEDUSA_INSTALLER_STAMP}" "${BASH_PROFILE}"
-}
-
-installer.generate_bash_config() {
-  cat <<-EOF
-
-# ---------------------------------------------------------------------------
-# ${MEDUSA_INSTALLER_STAMP} (on $(date -u))
-eval "$('${MEDUSA_BIN}' init -)"
-# ---------------------------------------------------------------------------
-
-EOF
-}
-
 installer.locate_installation_dir() {
-  if [[ -n ${MEDUSA_DIR} ]]; then
-    echo "${MEDUSA_DIR}"
-    return 0
-  fi
-
-  local bin="$(command -v medusa | head -1)"
-
-  if [[ -n ${bin} ]]; then
-    medusa info | grep MEDUSA_DIR | cut -d'=' -f2
+  if type -p medusa 1>/dev/null; then
+    medusa info | grep MEDUSA_DIR | cut -d'=' -f2-
   else
     echo "${HOME}/.medusa"
   fi
