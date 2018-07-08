@@ -1,0 +1,4 @@
+- hosts: localhost
+  gather_facts: no
+  tasks:
+    - command: "echo {{ custom_host_var }}"

@@ -87,4 +87,14 @@ RSpec.describe 'medusa ansible-playbook', type: :bash, docker: true, ansible: tr
       expect(subject.stdout).to include('"dockerhost": "blah.blah"')
     end
   end
+
+  describe 'ANSIBLE_CONFIG' do
+    it 'infers it from the specified playbook path' do
+      expect(
+        run_script(subject, ['ansible-playbook', './ansible_cfg_test/playbook.yml'])
+      ).to be true
+
+      # expect(subject.stdout).to include('"dockerhost": "blah.blah"')
+    end
+  end
 end

@@ -52,6 +52,7 @@ export ANSIBLE_STDOUT_CALLBACK="${ANSIBLE_STDOUT_CALLBACK:-debug}"
 export ANSIBLE_VAULT_PASS="${ANSIBLE_VAULT_PASS}"
 export MEDUSA_CONTAINER="${MEDUSA_CONTAINER}"
 export MEDUSA_DOCKERHOST="${MEDUSA_DOCKERHOST}"
+export MEDUSA_INFER_CONFIG="${MEDUSA_INFER_CONFIG:-1}"
 export MEDUSA_SETTINGS_FILE="${MEDUSA_SETTINGS_FILE:-settings.yml}"
 export MEDUSA_SHARE_DIR="${MEDUSA_SHARE_DIR:-/mnt/medusa}"
 export MEDUSA_SSH_DIR="${MEDUSA_SSH_DIR:-${HOME}/.ssh}"
@@ -92,6 +93,20 @@ medusa.ansible-playbook() {
       echo "           dockerhost: 192.168.1.100"
       echo ""
     } 1>&2
+  fi
+
+  # locate an ansible.cfg in the directories of any of the specified playbooks
+  if [[ -z ${ANSIBLE_CONFIG} && ${MEDUSA_INFER_CONFIG} == "1" ]]; then
+    local file_args=( $(scan_positional_arguments "$@") )
+
+    for cfile in "${file_args[@]}"; do
+      local cdir="$(dirname "${cfile}")"
+
+      if [[ -f ${cdir}/ansible.cfg ]]; then
+        export ANSIBLE_CONFIG="${cdir}/ansible.cfg"
+        break
+      fi
+    done
   fi
 
   medusa_docker_run \
@@ -428,6 +443,24 @@ resolve_symlink() {
   else
     echo "${1}"
   fi
+}
+
+scan_positional_arguments() {
+  local state=0
+  local pargs=()
+
+  for arg in "${@}"; do
+    if [[ $arg =~ ^- ]]; then
+      state=1
+    elif [[ $state -eq 1 ]]; then
+      state=0
+      continue
+    else
+      pargs=("${pargs[@]}" "${arg}")
+    fi
+  done
+
+  echo "${pargs[@]}"
 }
 
 main "$@"
