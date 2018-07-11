@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2155
 
-MEDUSA_ANSIBLE_IMAGE="amireh/ansible:2.5.3-4.1"
+MEDUSA_ANSIBLE_IMAGE="${MEDUSA_ANSIBLE_IMAGE:-'amireh/ansible:2.5.3-4.2'}"
 MEDUSA_VERSION="1.0"
 
 #                          ,--.
@@ -50,9 +50,6 @@ main() {
 # ARGUMENTS
 # ------------------------------------------------------------------------------
 
-export ANSIBLE_RETRY_FILES_ENABLED="${ANSIBLE_RETRY_FILES_ENABLED:-false}"
-export ANSIBLE_STDERR_CALLBACK="${ANSIBLE_STDERR_CALLBACK:-debug}"
-export ANSIBLE_STDOUT_CALLBACK="${ANSIBLE_STDOUT_CALLBACK:-debug}"
 export ANSIBLE_VAULT_PASS="${ANSIBLE_VAULT_PASS}"
 export MEDUSA_CONTAINER="${MEDUSA_CONTAINER}"
 export MEDUSA_DOCKERHOST="${MEDUSA_DOCKERHOST}"
@@ -151,20 +148,12 @@ medusa.help() {
     "any of the supported Ansible environment variables ${TTY_YELLOW}[all]${TTY_RESET}"
 
     " " " "
-    "ANSIBLE_RETRY_FILES_ENABLED"
-    "default override to 'false' ${TTY_YELLOW}[ansible-playbook]${TTY_RESET}"
-
-    " " " "
-    "ANSIBLE_STDERR_CALLBACK"
-    "default override to 'debug' ${TTY_YELLOW}[ansible-playbook]${TTY_RESET}"
-
-    " " " "
-    "ANSIBLE_STDOUT_CALLBACK"
-    "default override to 'debug' ${TTY_YELLOW}[ansible-playbook]${TTY_RESET}"
-
-    " " " "
     "ANSIBLE_VAULT_PASS"
     "ansible vault password to stash into a file readable only to the ansible user\\n \\n>> DO NOT TYPE THIS IN CLEAR-TEXT <<\\n \\n${TTY_YELLOW}[ansible, ansible-playbook, ansible-vault]${TTY_RESET}"
+
+    " " " "
+    "MEDUSA_ANSIBLE_IMAGE"
+    "the ansible docker image to use ${TTY_YELLOW}[all]${TTY_RESET}"
 
     " " " "
     "MEDUSA_CONTAINER"
