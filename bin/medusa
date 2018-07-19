@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2155
 
-MEDUSA_ANSIBLE_IMAGE="${MEDUSA_ANSIBLE_IMAGE:-'amireh/ansible:2.5.3-4.2'}"
+MEDUSA_ANSIBLE_IMAGE="${MEDUSA_ANSIBLE_IMAGE:-amireh/ansible:2.5.3-4.2}"
 MEDUSA_VERSION="1.0"
 
 #                          ,--.
