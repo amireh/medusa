@@ -309,7 +309,7 @@ medusa_docker_run() {
     echo "docker run ${args[*]} $MEDUSA_ANSIBLE_IMAGE ${command_args[*]}" 1>&2
   fi
 
-  docker run "${args[@]}" $MEDUSA_ANSIBLE_IMAGE "${command_args[@]}"
+  docker run "${args[@]}" "$MEDUSA_ANSIBLE_IMAGE" "${command_args[@]}"
 }
 
 # ------------------------------------------------------------------------------
