@@ -31,7 +31,8 @@ main() {
     fi
   done
 
-  if [[ "${commands[*]}" =~ $1 ]]; then
+  # shellcheck disable=SC2076
+  if [[ " ${commands[*]} " =~ " $1 " ]]; then
     # shellcheck disable=SC2145
     medusa."$@"
   elif [[ ${1} == "commands" ]]; then
@@ -56,7 +57,7 @@ export MEDUSA_DOCKERHOST="${MEDUSA_DOCKERHOST}"
 export MEDUSA_INFER_CONFIG="${MEDUSA_INFER_CONFIG:-1}"
 export MEDUSA_SETTINGS_FILE="${MEDUSA_SETTINGS_FILE:-settings.yml}"
 export MEDUSA_SHARE_DIR="${MEDUSA_SHARE_DIR:-/mnt/medusa}"
-export MEDUSA_SSH_DIR="${MEDUSA_SSH_DIR:-${HOME}/.ssh}"
+export MEDUSA_SSH_DIR="${MEDUSA_SSH_DIR:-~/.ssh}"
 export MEDUSA_VERBOSE="${MEDUSA_VERBOSE:-0}"
 
 # ------------------------------------------------------------------------------
@@ -177,7 +178,7 @@ medusa.help() {
 
     " " " "
     "MEDUSA_SSH_DIR"
-    "ssh directory to mount for use by the masquerading user (default: '\$HOME/.ssh' if it exists) ${TTY_YELLOW}[all]${TTY_RESET}"
+    "ssh directory to mount for use by the masquerading user (default: '~/.ssh' if it exists) ${TTY_YELLOW}[all]${TTY_RESET}"
 
     " " " "
     "MEDUSA_VERBOSE"

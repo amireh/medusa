@@ -1,5 +1,5 @@
 medusa_source_dir: "/mnt/src"
-medusa_roles_dir: "/mnt/medusa/roles"
+medusa_roles_dir: "{{ lookup('env', 'MEDUSA_SHARE_DIR') }}/roles"
 medusa_host_dir: "{{ lookup('env', 'MEDUSA_PWD') }}"
 
 dockerhost: "{{ lookup('env', 'MEDUSA_DOCKERHOST') }}"

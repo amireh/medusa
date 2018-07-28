@@ -25,6 +25,3 @@ PLATFORMS
 DEPENDENCIES
   rspec (~> 3.7.0)
   rspec-bash-x (~> 1.2.0)
-
-BUNDLED WITH
-   1.16.1
