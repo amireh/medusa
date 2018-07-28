@@ -86,7 +86,7 @@ installer.configure_bash() {
     echo "          source ${BASH_PROFILE}"
     echo ""
   # medusa not in PATH?
-  elif ! type -p medusa; then
+  elif ! type -p medusa 1>/dev/null; then
     echo -e "${T_WAR}"
     echo "NOTE: It seems that your current PATH does not contain 'medusa' even "
     echo "      though the directive exists in your profile. You may need to "
@@ -111,8 +111,8 @@ installer.configure_bash() {
 
 installer.locate_bash_profile() {
   files=(
-    "${HOME}/.bashrc"
-    "${HOME}/.bash_profile"
+    ~/.bashrc
+    ~/.bash_profile
   )
 
   for file in "${files[@]}"; do
@@ -129,7 +129,7 @@ installer.locate_installation_dir() {
   if type -p medusa 1>/dev/null; then
     medusa info | grep MEDUSA_DIR | cut -d'=' -f2-
   else
-    echo "${HOME}/.medusa"
+    echo ~/.medusa
   fi
 }
 
