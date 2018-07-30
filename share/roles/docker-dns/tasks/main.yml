@@ -1,0 +1,16 @@
+- name: start the dns server (BIND)
+  docker_container:
+    image: cytopia/bind:0.15
+    state: started
+    name: "{{ name }}"
+    cleanup: false
+    detach: yes
+    restart: no
+    env:
+      WILDCARD_DNS: "{{ hostnames | to_wildcard_dns(dockerhost) | join(',') }}"
+      DNS_FORWARDER: "{{ dns_forwarder_servers | join(',') }}"
+    networks: "{{ networks | default(omit) }}"
+  delegate_to: localhost
+
+- name: register dns address
+  set_fact: "{{ fact }}={{ docker_container.NetworkSettings.IPAddress }}"

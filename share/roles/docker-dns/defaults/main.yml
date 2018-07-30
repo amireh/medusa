@@ -1,0 +1,8 @@
+name: medusa-dns
+fact: medusa_dns_address
+hostnames:
+  - dockerhost
+  - lvh.me
+fallback_dns_servers:
+  - '8.8.8.8'
+  - '8.8.4.4'

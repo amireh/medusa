@@ -1,0 +1,5 @@
+- hosts: localhost # remember, localhost points to the Ansible container!
+  tasks:
+    - name: reach out to docker host
+      command: "nslookup {{ dockerhost }}"
+

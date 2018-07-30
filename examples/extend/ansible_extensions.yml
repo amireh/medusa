@@ -1,0 +1,21 @@
+- hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: install system packages
+      apk:
+        name:
+          - unzip
+        update_cache: yes
+
+    - name: install python packages
+      pip:
+        name: psycopg2
+        state: present
+
+    - name: install custom module from github
+      git:
+        repo: https://github.com/amireh/ansible-lint-module
+        dest: /etc/ansible/library/ansible-lint-module
+
+    - name: install roles from galaxy
+      command: ansible-galaxy -r ansible_galaxy.yml

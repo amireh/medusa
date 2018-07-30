@@ -2,7 +2,7 @@
 # shellcheck disable=SC2155
 
 MEDUSA_ANSIBLE_IMAGE="${MEDUSA_ANSIBLE_IMAGE:-amireh/ansible:2.5.3-4.2}"
-MEDUSA_VERSION="1.0"
+MEDUSA_VERSION="1.1"
 
 #                          ,--.
 #          ,--.  .--,`) )  .--,
@@ -37,12 +37,14 @@ main() {
     medusa."$@"
   elif [[ ${1} == "commands" ]]; then
     medusa_commands "${commands[@]}"
+  elif [[ " -h --help " =~ " $1 " ]]; then
+    medusa.help
   else
     if [[ $# -gt 0 ]]; then
       tty_print_error "unknown command \"$1\""
     fi
 
-    medusa.help 1>&2
+    medusa.help "__brief_help__" 1>&2
     exit 1
   fi
 }
@@ -80,7 +82,7 @@ medusa.ansible-playbook() {
     flags=("${flags[@]}" --extra-vars "@${MEDUSA_SETTINGS_FILE}")
   fi
 
-       docker --version 1>&2
+  docker --version 1>&2
   echo "Docker host address: ${dockerhost}" 1>&2
   echo "Docker host user UID/GID: $(id -u):$(id -g)" 1>&2
   echo "Ansible flags: ${flags[*]}" 1>&2
@@ -144,47 +146,6 @@ medusa.help() {
     "info"              "display medusa installation information"
   )
 
-  local env_vars=(
-    "ANSIBLE_*"
-    "any of the supported Ansible environment variables ${TTY_YELLOW}[all]${TTY_RESET}"
-
-    " " " "
-    "ANSIBLE_VAULT_PASS"
-    "ansible vault password to stash into a file readable only to the ansible user\\n \\n>> DO NOT TYPE THIS IN CLEAR-TEXT <<\\n \\n${TTY_YELLOW}[ansible, ansible-playbook, ansible-vault]${TTY_RESET}"
-
-    " " " "
-    "MEDUSA_ANSIBLE_IMAGE"
-    "the ansible docker image to use ${TTY_YELLOW}[all]${TTY_RESET}"
-
-    " " " "
-    "MEDUSA_CONTAINER"
-    "a name to assign to the docker container ${TTY_YELLOW}[all]${TTY_RESET}"
-
-    " " " "
-    "MEDUSA_DOCKERHOST"
-    "ip address to use inside containers to reach the docker host (default: infer from host) ${TTY_YELLOW}[ansible-playbook]${TTY_RESET}"
-
-    " " " "
-    "MEDUSA_INFER_CONFIG"
-    "locate an ansible.cfg file to use when none exists in the default search paths (default: yes) ${TTY_YELLOW}[ansible-playbook]${TTY_RESET}"
-
-    " " " "
-    "MEDUSA_SETTINGS_FILE"
-    "user variable overrides (default: 'settings.yml' if it exists) ${TTY_YELLOW}[ansible-playbook]${TTY_RESET}"
-
-    " " " "
-    "MEDUSA_SHARE_DIR"
-    "path to where the medusa library should be mounted inside the container (default: ${MEDUSA_SHARE_DIR}) ${TTY_YELLOW}[ansible-playbook]${TTY_RESET}"
-
-    " " " "
-    "MEDUSA_SSH_DIR"
-    "ssh directory to mount for use by the masquerading user (default: '~/.ssh' if it exists) ${TTY_YELLOW}[all]${TTY_RESET}"
-
-    " " " "
-    "MEDUSA_VERBOSE"
-    "print docker commands to console before running (default: 0) ${TTY_YELLOW}[all]${TTY_RESET}"
-  )
-
   printf 'medusa                               [medusa  : %s]\n' "${MEDUSA_VERSION}"
   printf '                                     [ansible : %s]\n' "${MEDUSA_ANSIBLE_IMAGE}"
   printf '                                     [docker  : %s]\n' "$(docker version -f '{{ .Server.Version }}')"
@@ -211,6 +172,62 @@ EOF
 
   tty_print_columnized_list 24 "${commands[@]}"
 
+  printf '\n'
+
+  if [[ " $* " != " __brief_help__ " ]]; then
+    medusa.help_env_vars
+
+    printf '\n'
+    printf "For full documentation, see https://github.com/amireh/medusa"
+  else
+    printf "For full documentation, re-run with --help or see https://github.com/amireh/medusa"
+  fi
+
+  printf '\n'
+}
+
+medusa.help_env_vars() {
+  local env_vars=(
+    "ANSIBLE_*"
+    "any of the supported Ansible environment variables ${TTY_YELLOW}[all]${TTY_RESET}"
+
+    " " " "
+    "ANSIBLE_VAULT_PASS"
+    "ansible vault password to stash into a file readable only to the ansible user\\n \\n>> DO NOT TYPE THIS IN CLEAR-TEXT <<\\n \\n${TTY_YELLOW}[ansible, ansible-playbook, ansible-vault]${TTY_RESET}"
+
+    " " " "
+    "MEDUSA_ANSIBLE_IMAGE"
+    "the ansible docker image to use ${TTY_YELLOW}[all]${TTY_RESET}"
+
+    " " " "
+    "MEDUSA_CONTAINER"
+    "a name to assign to the docker container ${TTY_YELLOW}[all]${TTY_RESET}"
+
+    " " " "
+    "MEDUSA_DOCKERHOST"
+    "ip address to use inside containers to reach the docker host (default: infer from host) ${TTY_YELLOW}[ansible-playbook]${TTY_RESET}"
+
+    " " " "
+    "MEDUSA_INFER_CONFIG"
+    "locate an ansible.cfg file to use when none exists in the default search paths (default: 1) ${TTY_YELLOW}[ansible-playbook]${TTY_RESET}"
+
+    " " " "
+    "MEDUSA_SETTINGS_FILE"
+    "user variable overrides (default: 'settings.yml' if it exists) ${TTY_YELLOW}[ansible-playbook]${TTY_RESET}"
+
+    " " " "
+    "MEDUSA_SHARE_DIR"
+    "path to where the medusa library should be mounted inside the container (default: ${MEDUSA_SHARE_DIR}) ${TTY_YELLOW}[ansible-playbook]${TTY_RESET}"
+
+    " " " "
+    "MEDUSA_SSH_DIR"
+    "ssh directory to mount for use by the masquerading user (default: '~/.ssh' if it exists) ${TTY_YELLOW}[all]${TTY_RESET}"
+
+    " " " "
+    "MEDUSA_VERBOSE"
+    "print docker commands to console before running (default: 0) ${TTY_YELLOW}[all]${TTY_RESET}"
+  )
+
   printf '\nEnvironment variables:\n\n'
 
   tty_print_columnized_list 30 "${env_vars[@]}"
@@ -223,9 +240,6 @@ EOF
   printf "the following command:"
   printf '\n\n'
   printf "    medusa exec ansible-config list"
-  printf '\n'
-  printf '\n'
-  printf "For full documentation, see: https://github.com/amireh/medusa"
   printf '\n'
 }
 
@@ -274,6 +288,7 @@ medusa_docker_run() {
     -e "MIMIC_GID=$(id -G)"
     -e "MIMIC_UID=$(id -u)"
     -e "MEDUSA_PWD=${PWD}"
+    -e "MEDUSA_SHARE_DIR"
   )
 
   if [[ -t 0 ]]; then

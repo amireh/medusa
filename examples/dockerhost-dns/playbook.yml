@@ -1,0 +1,36 @@
+- hosts: localhost
+  tasks:
+    - name: run the example & cleanup afterwards
+      block:
+        - name: set up the dns server
+          import_role:
+            name: "{{ medusa_roles_dir }}/docker-dns"
+          vars:
+            name: medusa-example-dns
+
+        - name: attempt to resolve docker host from container
+          docker_container:
+            command: "nslookup {{ item }}"
+            image: alpine:3.7
+            name: medusa-example-client
+            state: started
+            cleanup: yes
+            interactive: yes
+            recreate: yes
+            detach: no
+            # use the custom dns server that will resolve "dockerhost" with the
+            # IP address of the dns server (container) we launched in the
+            # previous task
+            dns_servers:
+              - "{{ medusa_dns_address }}"
+          with_items:
+            - dockerhost
+            - lvh.me
+
+
+      # clean up
+      always:
+        - name: remove the dns server container
+          docker_container:
+            name: medusa-example-dns
+            state: absent
