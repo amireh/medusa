@@ -139,7 +139,7 @@ over those issues and their accompanying solutions.
 
 #### Host directory mounts
 
-- `PWD` from where `medusa` was run is mounted into `{{ medusa_src_dir }}`
+- `PWD` from where `medusa` was run is mounted into `{{ medusa_source_dir }}`
 - `~/.ssh` is mounted if it exists
 
 #### Play variables
