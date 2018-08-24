@@ -59,7 +59,7 @@ export MEDUSA_DOCKERHOST="${MEDUSA_DOCKERHOST}"
 export MEDUSA_INFER_CONFIG="${MEDUSA_INFER_CONFIG:-1}"
 export MEDUSA_SETTINGS_FILE="${MEDUSA_SETTINGS_FILE:-settings.yml}"
 export MEDUSA_SHARE_DIR="${MEDUSA_SHARE_DIR:-/mnt/medusa}"
-export MEDUSA_SSH_DIR="${MEDUSA_SSH_DIR:-~/.ssh}"
+export MEDUSA_SSH_DIR="${MEDUSA_SSH_DIR:-$HOME/.ssh}"
 export MEDUSA_VERBOSE="${MEDUSA_VERBOSE:-0}"
 
 # ------------------------------------------------------------------------------
